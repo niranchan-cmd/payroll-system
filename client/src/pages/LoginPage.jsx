@@ -129,7 +129,7 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 className="form-input"
-                placeholder="admin@payroll.com"
+                placeholder="name@company.com"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 required
@@ -194,22 +194,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          <div
-            style={{
-              marginTop: 24,
-              padding: 14,
-              background: 'var(--bg-elevated)',
-              borderRadius: 'var(--radius-md)',
-              fontSize: 12,
-              color: 'var(--text-muted)',
-              textAlign: 'center',
-            }}
-          >
-            Demo: <strong style={{ color: 'var(--text-secondary)' }}>admin@payroll.com</strong>
-            {' / '}
-            <strong style={{ color: 'var(--text-secondary)' }}>Admin@123</strong>
-          </div>
         </div>
 
         <p style={{ textAlign: 'center', marginTop: 24, fontSize: 12, color: 'var(--text-muted)' }}>
