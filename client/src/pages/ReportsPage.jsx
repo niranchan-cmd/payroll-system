@@ -4,9 +4,11 @@ import { useClient } from '../context/ClientContext';
 import {
   FileText, Download, Filter, Search, Building2, Calendar,
   TrendingUp, Users, DollarSign, ShieldCheck, ChevronDown,
-  ChevronRight, RefreshCw, Printer
+  ChevronRight, RefreshCw, Printer, Eye
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import PayslipModal from '../components/PayslipModal';
+import BulkPayslipsModal from '../components/BulkPayslipsModal';
 
 const MONTHS = [
   { value: 'all', label: 'All Months' },
@@ -44,6 +46,10 @@ export default function ReportsPage() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [collapsedRuns, setCollapsedRuns] = useState({});
+
+  // Payslip modal state
+  const [activePayslip, setActivePayslip] = useState(null);
+  const [activeBulkRun, setActiveBulkRun] = useState(null);
 
   // Sync if selected client context changes
   useEffect(() => {
@@ -387,8 +393,17 @@ export default function ReportsPage() {
                     </div>
                   </div>
 
-                  {/* Summary pills */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+                  {/* Summary pills + Bulk Payslips button */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 18 }} onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => setActiveBulkRun(run)}
+                      title="Download/Print all payslips for this client and month"
+                    >
+                      <FileText size={13} /> Bulk Payslips ({rTotals.count})
+                    </button>
+
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                         Gross
@@ -429,12 +444,11 @@ export default function ReportsPage() {
                           <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-subtle)', whiteSpace: 'nowrap' }}>HRA</th>
                           <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-subtle)', whiteSpace: 'nowrap' }}>Other Allw.</th>
                           <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-subtle)', whiteSpace: 'nowrap' }}>Gross Salary</th>
-                          <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--danger)', borderBottom: '1px solid var(--border-subtle)', whiteSpace: 'nowrap' }}>Emp PF (12%)</th>
+                          <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--danger)', borderBottom: '1px solid var(--border-subtle)', whiteSpace: 'nowrap' }}>Emp PF</th>
                           <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--danger)', borderBottom: '1px solid var(--border-subtle)', whiteSpace: 'nowrap' }}>Emp ESI</th>
                           <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--danger)', borderBottom: '1px solid var(--border-subtle)', whiteSpace: 'nowrap' }}>Total Ded.</th>
                           <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--success)', borderBottom: '1px solid var(--border-subtle)', whiteSpace: 'nowrap' }}>Net Pay</th>
-                          <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-subtle)', whiteSpace: 'nowrap' }}>Employer PF</th>
-                          <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-subtle)', whiteSpace: 'nowrap' }}>Total CTC Cost</th>
+                          <th style={{ padding: '10px 14px', textAlign: 'center', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-subtle)', whiteSpace: 'nowrap' }}>Payslip</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -495,11 +509,16 @@ export default function ReportsPage() {
                             <td style={{ padding: '12px 14px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--success)', fontSize: 13.5 }}>
                               ₹{fmt(entry.net_pay)}
                             </td>
-                            <td style={{ padding: '12px 14px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-                              ₹{fmt(entry.employer_pf)}
-                            </td>
-                            <td style={{ padding: '12px 14px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--accent-light)' }}>
-                              ₹{fmt(entry.total_ctc_cost)}
+                            <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                style={{ fontSize: 11.5, padding: '4px 8px' }}
+                                onClick={() => setActivePayslip({ entry, client: run.client, run })}
+                                title="View & Download Individual Payslip"
+                              >
+                                <FileText size={13} /> View
+                              </button>
                             </td>
                           </tr>
                         ))}
@@ -539,12 +558,7 @@ export default function ReportsPage() {
                           <td style={{ padding: '12px 14px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>
                             ₹{fmt(rTotals.net_pay)}
                           </td>
-                          <td style={{ padding: '12px 14px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                            ₹{fmt(rTotals.employer_pf)}
-                          </td>
-                          <td style={{ padding: '12px 14px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--accent-light)' }}>
-                            ₹{fmt(rTotals.total_ctc_cost)}
-                          </td>
+                          <td />
                         </tr>
                       </tfoot>
                     </table>
@@ -554,6 +568,26 @@ export default function ReportsPage() {
             );
           })}
         </div>
+      )}
+
+      {/* Individual Employee Payslip Modal */}
+      {activePayslip && (
+        <PayslipModal
+          entry={activePayslip.entry}
+          client={activePayslip.client}
+          run={activePayslip.run}
+          onClose={() => setActivePayslip(null)}
+        />
+      )}
+
+      {/* Bulk Payslips (All Employees) Modal */}
+      {activeBulkRun && (
+        <BulkPayslipsModal
+          entries={activeBulkRun.entries}
+          client={activeBulkRun.client}
+          run={activeBulkRun}
+          onClose={() => setActiveBulkRun(null)}
+        />
       )}
     </div>
   );

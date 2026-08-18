@@ -241,11 +241,21 @@ async function getPayrollRun(req, res) {
   const run = await prisma.payrollRun.findFirst({
     where: { id: runId, client_id: clientId },
     include: {
-      run_by_user: { select: { name: true } },
+      client: true,
+      run_by_user: { select: { name: true, email: true } },
       entries: {
         include: {
           employee: {
-            select: { id: true, name: true, roll_no: true, designation: true, department: true },
+            select: {
+              id: true,
+              name: true,
+              roll_no: true,
+              designation: true,
+              department: true,
+              email: true,
+              tax_regime: true,
+              start_date: true,
+            },
           },
         },
         orderBy: { employee: { name: 'asc' } },

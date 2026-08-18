@@ -2,13 +2,18 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useClient } from '../context/ClientContext';
 import api from '../services/api';
-import { Download, Lock, ChevronDown, ChevronUp, CheckCircle, Clock, ArrowLeft } from 'lucide-react';
+import {
+  Download, Lock, ChevronDown, ChevronUp, CheckCircle, Clock,
+  ArrowLeft, FileText, Printer, Eye
+} from 'lucide-react';
 import toast from 'react-hot-toast';
+import PayslipModal from '../components/PayslipModal';
+import BulkPayslipsModal from '../components/BulkPayslipsModal';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-function fmt(n) { return Number(n).toLocaleString('en-IN'); }
+function fmt(n) { return Number(n || 0).toLocaleString('en-IN'); }
 
-function EntryRow({ entry }) {
+function EntryRow({ entry, onOpenPayslip }) {
   const [expanded, setExpanded] = useState(false);
   const comps = entry.components?.included || [];
 
@@ -35,13 +40,24 @@ function EntryRow({ entry }) {
         <td style={{ padding: '14px 16px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--danger)' }}>₹{fmt(entry.employee_pf)}</td>
         <td style={{ padding: '14px 16px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--danger)' }}>₹{fmt(entry.employee_esi)}</td>
         <td style={{ padding: '14px 16px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 14, color: 'var(--success)' }}>₹{fmt(entry.net_pay)}</td>
+        <td style={{ padding: '14px 16px', textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            style={{ fontSize: 12, padding: '4px 8px' }}
+            onClick={() => onOpenPayslip(entry)}
+            title="View & Download Payslip"
+          >
+            <FileText size={13} /> Payslip
+          </button>
+        </td>
         <td style={{ padding: '14px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
           {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </td>
       </tr>
       {expanded && (
         <tr style={{ background: 'rgba(79,110,247,0.05)' }}>
-          <td colSpan={7} style={{ padding: '0 16px 20px 32px' }}>
+          <td colSpan={8} style={{ padding: '0 16px 20px 32px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, paddingTop: 16 }}>
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8 }}>Earnings</div>
@@ -94,6 +110,10 @@ export default function PayrollRunDetailPage() {
   const [finalizing, setFinalizing] = useState(false);
   const [error, setError] = useState(null);
 
+  // Payslip Modals state
+  const [activePayslipEntry, setActivePayslipEntry] = useState(null);
+  const [showBulkPayslips, setShowBulkPayslips] = useState(false);
+
   const fetchRun = useCallback(async () => {
     try {
       setLoading(true);
@@ -128,6 +148,7 @@ export default function PayrollRunDetailPage() {
 
   const t = run.totals;
   const periodLabel = `${MONTHS[run.month - 1]} ${run.year}`;
+  const clientData = run.client || selectedClient;
 
   return (
     <div>
@@ -143,9 +164,17 @@ export default function PayrollRunDetailPage() {
             </span>
           </div>
           <h1 className="page-title">Payroll — {periodLabel}</h1>
-          <p className="page-subtitle">{selectedClient?.name} · Run by {run.run_by_user?.name}</p>
+          <p className="page-subtitle">{clientData?.name} · Run by {run.run_by_user?.name}</p>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setShowBulkPayslips(true)}
+            title="Download / Print all payslips"
+          >
+            <FileText size={15} /> Bulk Payslips (All Employees)
+          </button>
           <a
             href={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api/v1/clients/${clientId}/payroll/${runId}/export`}
             className="btn btn-secondary"
@@ -163,7 +192,7 @@ export default function PayrollRunDetailPage() {
       </div>
 
       {/* Summary cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14, marginBottom: 28 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 28 }}>
         {[
           { label: 'Employees', value: t.employee_count },
           { label: 'Total Gross', value: `₹${fmt(t.total_gross)}`, color: 'var(--text-primary)' },
@@ -186,21 +215,32 @@ export default function PayrollRunDetailPage() {
 
       {/* Employee table */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)' }}>
-          <span className="card-title">Employee-wise Breakdown</span>
-          <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 8 }}>Click any row to expand</span>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <span className="card-title">Employee-wise Breakdown</span>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 8 }}>Click any row to expand earnings & deductions</span>
+          </div>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            {run.entries.length} employee{run.entries.length !== 1 ? 's' : ''}
+          </span>
         </div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: 'var(--bg-elevated)' }}>
-                {['Employee', 'Days', 'Gross', 'Emp PF', 'Emp ESI', 'Net Pay', ''].map((h) => (
+                {['Employee', 'Days', 'Gross', 'Emp PF', 'Emp ESI', 'Net Pay', 'Payslip', ''].map((h) => (
                   <th key={h} style={{ padding: '10px 16px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', textAlign: h === 'Employee' || h === '' ? 'left' : 'right', borderBottom: '1px solid var(--border-subtle)', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {run.entries.map((e) => <EntryRow key={e.id} entry={e} />)}
+              {run.entries.map((e) => (
+                <EntryRow
+                  key={e.id}
+                  entry={e}
+                  onOpenPayslip={(entry) => setActivePayslipEntry(entry)}
+                />
+              ))}
             </tbody>
             <tfoot>
               <tr style={{ background: 'var(--accent-dim)', borderTop: '2px solid var(--accent)' }}>
@@ -209,12 +249,32 @@ export default function PayrollRunDetailPage() {
                 <td style={{ padding: '12px 16px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--danger)' }}>₹{fmt(t.total_pf)}</td>
                 <td style={{ padding: '12px 16px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--danger)' }}>₹{fmt(t.total_esi)}</td>
                 <td style={{ padding: '12px 16px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--success)' }}>₹{fmt(t.total_net_pay)}</td>
-                <td />
+                <td colSpan={2} />
               </tr>
             </tfoot>
           </table>
         </div>
       </div>
+
+      {/* Individual Employee Payslip Modal */}
+      {activePayslipEntry && (
+        <PayslipModal
+          entry={activePayslipEntry}
+          client={clientData}
+          run={run}
+          onClose={() => setActivePayslipEntry(null)}
+        />
+      )}
+
+      {/* Bulk Payslips (All Employees) Modal */}
+      {showBulkPayslips && (
+        <BulkPayslipsModal
+          entries={run.entries}
+          client={clientData}
+          run={run}
+          onClose={() => setShowBulkPayslips(false)}
+        />
+      )}
     </div>
   );
 }
