@@ -41,7 +41,7 @@ async function getPayRegister(req, res) {
         select: {
           id: true,
           name: true,
-          code: true,
+          registration_no: true,
         },
       },
       run_by_user: {
@@ -222,7 +222,7 @@ async function exportPayRegisterCSV(req, res) {
   const runs = await prisma.payrollRun.findMany({
     where: runWhere,
     include: {
-      client: { select: { name: true, code: true } },
+      client: { select: { name: true, registration_no: true } },
       entries: {
         include: {
           employee: {
