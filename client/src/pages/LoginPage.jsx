@@ -70,14 +70,15 @@ export default function LoginPage() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: 22,
+              fontSize: 18,
               fontWeight: 900,
               color: '#fff',
               fontFamily: 'var(--font-heading)',
               boxShadow: '0 4px 20px rgba(79,110,247,0.4)',
+              letterSpacing: '-0.02em',
             }}
           >
-            P
+            NH
           </div>
           <div>
             <div
@@ -89,10 +90,10 @@ export default function LoginPage() {
                 letterSpacing: '-0.02em',
               }}
             >
-              PayrollOS
+              PayEase
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>
-              Management Suite
+              by NH Associates
             </div>
           </div>
         </div>
@@ -197,7 +198,7 @@ export default function LoginPage() {
         </div>
 
         <p style={{ textAlign: 'center', marginTop: 24, fontSize: 12, color: 'var(--text-muted)' }}>
-          PayrollOS v1.0 — Secure Payroll Management
+          PayEase v1.0 — by NH Associates
         </p>
       </div>
     </div>

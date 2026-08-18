@@ -29,10 +29,10 @@ export default function AppLayout() {
       {/* ── Sidebar ──────────────────────────────────────── */}
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <div className="sidebar-logo-icon">P</div>
+          <div className="sidebar-logo-icon">NH</div>
           <div className="sidebar-logo-text">
-            <span className="sidebar-logo-title">PayrollOS</span>
-            <span className="sidebar-logo-sub">Management Suite</span>
+            <span className="sidebar-logo-title">PayEase</span>
+            <span className="sidebar-logo-sub">by NH Associates</span>
           </div>
         </div>
 
