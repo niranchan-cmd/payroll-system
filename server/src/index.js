@@ -15,6 +15,7 @@ const employeeRoutes = require('./routes/employee.routes');
 const { flatRouter: employeeFlatRouter } = require('./routes/employee.routes');
 const payrollRoutes = require('./routes/payroll.routes');
 const importRoutes = require('./routes/import.routes');
+const reportRoutes = require('./routes/report.routes');
 const { errorResponse } = require('./utils/response.utils');
 
 const app = express();
@@ -72,6 +73,9 @@ app.use('/api/v1/clients/:clientId/payroll', payrollRoutes);
 
 // Bulk Import: /api/v1/clients/:clientId/employees/import
 app.use('/api/v1/clients/:clientId/employees/import', importRoutes);
+
+// Reports: /api/v1/reports
+app.use('/api/v1/reports', reportRoutes);
 
 // Health check
 app.get('/api/v1/health', (req, res) => {

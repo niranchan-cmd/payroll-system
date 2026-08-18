@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useClient } from '../context/ClientContext';
 import {
   LayoutDashboard, Building2, Users, LogOut, ChevronRight,
-  X, Settings, Play, FileUp
+  X, Settings, Play, FileUp, FileSpreadsheet
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ThemeSelector from './ThemeSelector';
@@ -11,6 +11,7 @@ import ThemeSelector from './ThemeSelector';
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
   { to: '/clients', icon: Building2, label: 'Clients' },
+  { to: '/reports', icon: FileSpreadsheet, label: 'Pay Register & Reports' },
 ];
 
 export default function AppLayout() {
