@@ -6,13 +6,15 @@ import './index.css';
 import App from './App.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { ClientProvider } from './context/ClientContext.jsx';
+import { ThemeProvider } from './context/ThemeContext.jsx';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
-      <AuthProvider>
-        <ClientProvider>
-          <App />
+      <ThemeProvider>
+        <AuthProvider>
+          <ClientProvider>
+            <App />
           <Toaster
             position="top-right"
             toastOptions={{
@@ -29,8 +31,9 @@ createRoot(document.getElementById('root')).render(
               error: { iconTheme: { primary: '#ef4444', secondary: '#0b0f1a' } },
             }}
           />
-        </ClientProvider>
-      </AuthProvider>
+          </ClientProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   </StrictMode>
 );

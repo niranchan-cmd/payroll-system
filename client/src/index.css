@@ -1,12 +1,12 @@
 :root {
-  /* ── Color Palette ─────────────────────────────── */
+  /* ── Default (Midnight Indigo) ─────────────────────── */
   --bg-primary:    #0b0f1a;
   --bg-surface:    #111827;
   --bg-elevated:   #1a2235;
   --bg-card:       #1e2a3a;
   --bg-hover:      #243048;
 
-  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-subtle: rgba(255, 255, 255, 0.08);
   --border-active: rgba(99, 130, 255, 0.4);
 
   --accent:        #4f6ef7;
@@ -25,7 +25,7 @@
 
   --text-primary:  #f1f5f9;
   --text-secondary:#94a3b8;
-  --text-muted:    #4b5563;
+  --text-muted:    #64748b;
   --text-inverse:  #0b0f1a;
 
   /* ── Typography ─────────────────────────────────── */
@@ -66,6 +66,125 @@
   --sidebar-width: 260px;
   --topbar-height: 64px;
   --content-max:   1200px;
+}
+
+/* ── ☀️ EXECUTIVE LIGHT THEME ─────────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg-primary:    #f8fafc;
+  --bg-surface:    #ffffff;
+  --bg-elevated:   #f1f5f9;
+  --bg-card:       #ffffff;
+  --bg-hover:      #e2e8f0;
+
+  --border-subtle: rgba(15, 23, 42, 0.1);
+  --border-active: rgba(59, 91, 219, 0.5);
+
+  --accent:        #3b5bdb;
+  --accent-light:  #4c6ef5;
+  --accent-dim:    rgba(59, 91, 219, 0.1);
+  --accent-hover:  #2f4dc2;
+
+  --success:       #16a34a;
+  --success-dim:   rgba(22, 163, 74, 0.1);
+  --warning:       #d97706;
+  --warning-dim:   rgba(217, 119, 6, 0.1);
+  --danger:        #dc2626;
+  --danger-dim:    rgba(220, 38, 38, 0.1);
+  --info:          #2563eb;
+  --info-dim:      rgba(37, 99, 235, 0.1);
+
+  --text-primary:  #0f172a;
+  --text-secondary:#475569;
+  --text-muted:    #94a3b8;
+  --text-inverse:  #ffffff;
+
+  --shadow-sm:     0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:     0 4px 12px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.04);
+  --shadow-lg:     0 10px 30px rgba(0,0,0,0.1), 0 4px 12px rgba(0,0,0,0.05);
+}
+
+/* ── 🌿 EMERALD WEALTH THEME ──────────────────────────────────────────────── */
+[data-theme="emerald"] {
+  --bg-primary:    #06130e;
+  --bg-surface:    #0d201a;
+  --bg-elevated:   #122a22;
+  --bg-card:       #163229;
+  --bg-hover:      #1c3c32;
+
+  --border-subtle: rgba(16, 185, 129, 0.12);
+  --border-active: rgba(16, 185, 129, 0.45);
+
+  --accent:        #10b981;
+  --accent-light:  #34d399;
+  --accent-dim:    rgba(16, 185, 129, 0.15);
+  --accent-hover:  #059669;
+
+  --text-primary:  #f0fdf4;
+  --text-secondary:#86efac;
+  --text-muted:    #4ade8099;
+}
+
+/* ── 🔮 ROYAL AMETHYST THEME ──────────────────────────────────────────────── */
+[data-theme="amethyst"] {
+  --bg-primary:    #0f0c1b;
+  --bg-surface:    #18142a;
+  --bg-elevated:   #211b3b;
+  --bg-card:       #2a234a;
+  --bg-hover:      #332b59;
+
+  --border-subtle: rgba(139, 92, 246, 0.12);
+  --border-active: rgba(139, 92, 246, 0.45);
+
+  --accent:        #8b5cf6;
+  --accent-light:  #a78bfa;
+  --accent-dim:    rgba(139, 92, 246, 0.15);
+  --accent-hover:  #7c3aed;
+
+  --text-primary:  #faf5ff;
+  --text-secondary:#c4b5fd;
+  --text-muted:    #a78bfa88;
+}
+
+/* ── 🌅 SUNSET COPPER THEME ───────────────────────────────────────────────── */
+[data-theme="amber"] {
+  --bg-primary:    #140f09;
+  --bg-surface:    #201912;
+  --bg-elevated:   #2c221a;
+  --bg-card:       #372b22;
+  --bg-hover:      #43352a;
+
+  --border-subtle: rgba(245, 158, 11, 0.12);
+  --border-active: rgba(245, 158, 11, 0.45);
+
+  --accent:        #f59e0b;
+  --accent-light:  #fbbf24;
+  --accent-dim:    rgba(245, 158, 11, 0.15);
+  --accent-hover:  #d97706;
+
+  --text-primary:  #fffbeb;
+  --text-secondary:#fcd34d;
+  --text-muted:    #fbbf2488;
+}
+
+/* ── ❄️ NORDIC CYAN THEME ─────────────────────────────────────────────────── */
+[data-theme="slate"] {
+  --bg-primary:    #09131a;
+  --bg-surface:    #101e28;
+  --bg-elevated:   #172936;
+  --bg-card:       #1e3444;
+  --bg-hover:      #253f52;
+
+  --border-subtle: rgba(6, 182, 212, 0.12);
+  --border-active: rgba(6, 182, 212, 0.45);
+
+  --accent:        #06b6d4;
+  --accent-light:  #22d3ee;
+  --accent-dim:    rgba(6, 182, 212, 0.15);
+  --accent-hover:  #0891b2;
+
+  --text-primary:  #ecfeff;
+  --text-secondary:#67e8f9;
+  --text-muted:    #22d3ee88;
 }
 
 /* ── Reset ────────────────────────────────────────────── */

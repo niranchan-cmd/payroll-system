@@ -6,6 +6,7 @@ import {
   X, Settings, Play, FileUp
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ThemeSelector from './ThemeSelector';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
@@ -157,27 +158,30 @@ export default function AppLayout() {
             )}
           </div>
 
-          {selectedClient && (
-            <div className="client-banner" style={{ marginLeft: 'auto' }}>
-              <div className="client-banner-dot" />
-              <span>{selectedClient.name}</span>
-              <button
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--text-muted)',
-                  padding: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-                onClick={clearClient}
-                data-tooltip="Switch client"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          )}
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <ThemeSelector />
+            {selectedClient && (
+              <div className="client-banner">
+                <div className="client-banner-dot" />
+                <span>{selectedClient.name}</span>
+                <button
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--text-muted)',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  onClick={clearClient}
+                  data-tooltip="Switch client"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+          </div>
         </header>
 
         <main className="page-content">

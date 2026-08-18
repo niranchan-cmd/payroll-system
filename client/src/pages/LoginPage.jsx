@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { Eye, EyeOff, LogIn } from 'lucide-react';
+import ThemeSelector from '../components/ThemeSelector';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -37,8 +38,13 @@ export default function LoginPage() {
         justifyContent: 'center',
         background: 'var(--bg-primary)',
         padding: 24,
+        position: 'relative',
       }}
     >
+      {/* Top right theme switcher */}
+      <div style={{ position: 'absolute', top: 20, right: 24, zIndex: 10 }}>
+        <ThemeSelector />
+      </div>
       {/* Background texture */}
       <div
         style={{
