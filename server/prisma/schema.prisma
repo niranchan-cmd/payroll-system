@@ -1,0 +1,201 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── AUTH ────────────────────────────────────────────────────────────────────
+
+model User {
+  id         String   @id @default(uuid())
+  email      String   @unique
+  password   String
+  name       String
+  role       String   // "SUPER_ADMIN" | "ADMIN" | "VIEWER"
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  refresh_tokens RefreshToken[]
+  salary_changes EmployeeSalaryHistory[] @relation("ChangedByUser")
+  payroll_runs   PayrollRun[]            @relation("RunByUser")
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid())
+  token      String   @unique
+  user_id    String
+  expires_at DateTime
+  created_at DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+// ─── CLIENT ──────────────────────────────────────────────────────────────────
+
+model Client {
+  id               String   @id @default(uuid())
+  name             String
+  registration_no  String?
+  pan              String?
+  address          String?
+  state            String?
+
+  // Payroll config
+  proration_rule   String?  // "CALENDAR" | "FIXED_26" | "FIXED_30" | "WORKING_DAYS"
+  pf_on_actual     Boolean? // true = on actual basic, false = capped at ₹15,000
+  esi_auto_apply   Boolean? // auto-apply if gross ≤ ₹21,000
+  payroll_cycle    String?  // "MONTHLY"
+  payroll_cutoff   Int?     // day of month
+
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  structures    CTCStructure[]
+  employees     Employee[]
+  payroll_runs  PayrollRun[]
+}
+
+// ─── CTC STRUCTURE ───────────────────────────────────────────────────────────
+
+model CTCStructure {
+  id             String    @id @default(uuid())
+  client_id      String
+  version_name   String    // "V1", "V2", "V3"
+  effective_from DateTime
+  effective_to   DateTime?
+  status         String    // "ACTIVE" | "EXPIRED" | "UPCOMING"
+
+  // Rounding config
+  rounding_rule  String    // "NEAREST_RUPEE" | "NEAREST_10" | "NONE"
+  remainder_comp String    // component name that absorbs rounding remainder
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  client     Client         @relation(fields: [client_id], references: [id])
+  components CTCComponent[]
+
+  salary_histories EmployeeSalaryHistory[]
+}
+
+model CTCComponent {
+  id           String  @id @default(uuid())
+  structure_id String
+  name         String  // "Basic", "HRA", "Special Allowance", "Employer PF"
+  calc_type    String  // "PERCENT_OF_CTC" | "PERCENT_OF_BASIC" | "PERCENT_OF_GROSS"
+                       // | "REMAINDER" | "FIXED"
+  value        Decimal? @db.Decimal(10, 4) // percentage (e.g. 40.00) or fixed amount
+  basis        String  // "ANNUAL_CTC" | "MONTHLY_BASIC" | "GROSS_SALARY" | "N/A"
+  ctc_inclusion String // "INCLUDED" | "ADDED_ON_TOP"
+  is_taxable   Boolean
+  display_order Int
+
+  structure CTCStructure @relation(fields: [structure_id], references: [id])
+}
+
+// ─── EMPLOYEE ─────────────────────────────────────────────────────────────────
+
+model Employee {
+  id          String   @id @default(uuid())
+  client_id   String
+  name        String
+  roll_no     String
+  designation String
+  department  String?
+  email       String?
+  start_date  DateTime
+  tax_regime  String   // "OLD" | "NEW"
+  status      String   @default("ACTIVE") // "ACTIVE" | "INACTIVE"
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  client           Client                  @relation(fields: [client_id], references: [id])
+  salary_histories EmployeeSalaryHistory[]
+  payroll_entries  PayrollEntry[]
+
+  @@unique([client_id, roll_no])
+}
+
+model EmployeeSalaryHistory {
+  id                   String    @id @default(uuid())
+  employee_id          String
+  annual_ctc           Decimal   @db.Decimal(15, 2)
+  structure_version_id String
+  effective_from       DateTime
+  effective_to         DateTime? // null = currently active
+  change_reason        String    // "INITIAL_JOINING" | "CTC_REVISION" | "STRUCTURE_CHANGE"
+  notes                String?
+  created_by           String    // user id
+  created_at           DateTime  @default(now())
+
+  employee          Employee     @relation(fields: [employee_id], references: [id])
+  structure_version CTCStructure @relation(fields: [structure_version_id], references: [id])
+  created_by_user   User         @relation("ChangedByUser", fields: [created_by], references: [id])
+
+  payroll_entries PayrollEntry[]
+}
+
+// ─── PAYROLL ENGINE ───────────────────────────────────────────────────────────
+
+model PayrollRun {
+  id           String   @id @default(uuid())
+  client_id    String
+  month        Int      // 1-12
+  year         Int      // e.g. 2026
+  status       String   @default("DRAFT") // "DRAFT" | "FINALIZED"
+  run_by       String   // user id
+  notes        String?
+  created_at   DateTime @default(now())
+  finalized_at DateTime?
+
+  client  Client         @relation(fields: [client_id], references: [id])
+  run_by_user User       @relation("RunByUser", fields: [run_by], references: [id])
+  entries PayrollEntry[]
+
+  @@unique([client_id, month, year])
+}
+
+model PayrollEntry {
+  id                     String   @id @default(uuid())
+  payroll_run_id         String
+  employee_id            String
+  salary_history_id      String
+
+  // Working days
+  total_days_in_month    Int
+  days_worked            Int       // < total if mid-month joiner
+  is_prorated            Boolean   @default(false)
+
+  // Gross components (JSON blob of {name, monthly, prorated, annual})
+  components_json        String    // JSON string
+
+  // Key monetary values (Decimal for accuracy)
+  gross_salary           Decimal   @db.Decimal(15, 2)
+  basic_salary           Decimal   @db.Decimal(15, 2)
+
+  // Employee deductions
+  employee_pf            Decimal   @db.Decimal(15, 2)
+  employee_esi           Decimal   @db.Decimal(15, 2)
+  total_deductions       Decimal   @db.Decimal(15, 2)
+
+  // Net pay
+  net_pay                Decimal   @db.Decimal(15, 2)
+
+  // Employer contributions (for record)
+  employer_pf            Decimal   @db.Decimal(15, 2)
+  employer_esi           Decimal   @db.Decimal(15, 2)
+
+  created_at DateTime @default(now())
+
+  payroll_run     PayrollRun           @relation(fields: [payroll_run_id], references: [id], onDelete: Cascade)
+  employee        Employee             @relation(fields: [employee_id], references: [id])
+  salary_history  EmployeeSalaryHistory @relation(fields: [salary_history_id], references: [id])
+}
