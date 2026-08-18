@@ -175,13 +175,31 @@ export default function PayrollRunDetailPage() {
           >
             <FileText size={15} /> Bulk Payslips (All Employees)
           </button>
-          <a
-            href={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api/v1/clients/${clientId}/payroll/${runId}/export`}
+          <button
+            type="button"
             className="btn btn-secondary"
-            download
+            onClick={async () => {
+              try {
+                const res = await api.get(`/clients/${clientId}/payroll/${runId}/export`, {
+                  responseType: 'blob',
+                });
+                const blob = new Blob([res.data], { type: 'text/csv' });
+                const blobUrl = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.setAttribute('download', `payroll_${clientData?.name || 'client'}_${periodLabel}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                window.URL.revokeObjectURL(blobUrl);
+                toast.success('CSV exported successfully!');
+              } catch (err) {
+                toast.error('Failed to export CSV.');
+              }
+            }}
           >
             <Download size={15} /> Export CSV
-          </a>
+          </button>
           {run.status === 'DRAFT' && (
             <button className="btn btn-primary" onClick={handleFinalize} disabled={finalizing}>
               {finalizing ? <span className="spinner" style={{ width: 15, height: 15 }} /> : <Lock size={15} />}

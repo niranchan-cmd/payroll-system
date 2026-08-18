@@ -50,10 +50,32 @@ export default function BulkImportPage() {
   const [error, setError] = useState(null);
 
   // ── Step 1: Download template ────────────────────────────────────────────
-  const handleDownloadTemplate = () => {
-    const url = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api/v1/clients/${clientId}/employees/import/template`;
-    window.open(url, '_blank');
-    setStep(1);
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownloadTemplate = async () => {
+    setDownloading(true);
+    try {
+      const res = await api.get(`/clients/${clientId}/employees/import/template`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([res.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.setAttribute('download', `employee_import_template_${selectedClient?.name || 'client'}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+      toast.success('Template downloaded successfully!');
+      setStep(1);
+    } catch (err) {
+      toast.error('Failed to download template. Check your connection.');
+    } finally {
+      setDownloading(false);
+    }
   };
 
   // ── Step 2: Validate file ────────────────────────────────────────────────
@@ -140,8 +162,12 @@ export default function BulkImportPage() {
               ))}
             </div>
           </div>
-          <button className="btn btn-primary btn-lg" style={{ width: '100%' }} onClick={handleDownloadTemplate}>
-            <Download size={18} /> Download Template (.xlsx)
+          <button className="btn btn-primary btn-lg" style={{ width: '100%' }} onClick={handleDownloadTemplate} disabled={downloading}>
+            {downloading ? (
+              <><span className="spinner" style={{ width: 18, height: 18 }} /> Downloading Template...</>
+            ) : (
+              <><Download size={18} /> Download Template (.xlsx)</>
+            )}
           </button>
           <button className="btn btn-ghost" style={{ marginTop: 12, width: '100%' }} onClick={() => setStep(1)}>
             I already have the template → Skip to Upload

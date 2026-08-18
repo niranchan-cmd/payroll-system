@@ -86,15 +86,35 @@ export default function ReportsPage() {
     setCollapsedRuns((prev) => ({ ...prev, [runId]: !prev[runId] }));
   };
 
-  const handleExportCSV = () => {
-    const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
-    const query = new URLSearchParams({
-      clientId: clientFilter,
-      month: monthFilter,
-      year: yearFilter,
-      status: statusFilter,
-    }).toString();
-    window.open(`${baseURL}/api/v1/reports/pay-register/export?${query}`, '_blank');
+  const [exportingCSV, setExportingCSV] = useState(false);
+
+  const handleExportCSV = async () => {
+    setExportingCSV(true);
+    try {
+      const res = await api.get('/reports/pay-register/export', {
+        params: {
+          clientId: clientFilter,
+          month: monthFilter,
+          year: yearFilter,
+          status: statusFilter,
+        },
+        responseType: 'blob',
+      });
+      const blob = new Blob([res.data], { type: 'text/csv' });
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.setAttribute('download', `pay_register_${yearFilter}_${monthFilter}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+      toast.success('Pay register CSV exported successfully!');
+    } catch (err) {
+      toast.error('Failed to export CSV.');
+    } finally {
+      setExportingCSV(false);
+    }
   };
 
   const handlePrint = () => {
