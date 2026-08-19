@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { ArrowLeft, Edit, History, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Edit, Edit3, History, TrendingUp, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import EditEmployeeModal from '../components/EditEmployeeModal';
 
 function fmtINR(n) {
   if (n === null || n === undefined) return '—';
@@ -19,13 +20,29 @@ export default function EmployeeProfilePage() {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showEditModal, setShowEditModal] = useState(false);
 
-  useEffect(() => {
+  function loadEmployee() {
     api.get(`/employees/${id}`)
       .then((r) => setData(r.data.data))
       .catch(() => toast.error('Failed to load employee'))
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    loadEmployee();
   }, [id]);
+
+  async function handleDelete() {
+    if (!window.confirm(`Are you sure you want to delete employee "${data?.employee?.name}"?`)) return;
+    try {
+      await api.delete(`/employees/${id}`);
+      toast.success('Employee deleted successfully.');
+      navigate(-1);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete employee.');
+    }
+  }
 
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}><div className="spinner" style={{ width: 28, height: 28 }} /></div>;
   if (!data) return <div className="empty-state"><div className="empty-title">Employee not found</div></div>;
@@ -59,12 +76,30 @@ export default function EmployeeProfilePage() {
             </div>
           </div>
         </div>
-        <button
-          className="btn btn-secondary"
-          onClick={() => navigate(`/employees/${id}/revise`)}
-        >
-          <TrendingUp size={15} /> Revise CTC
-        </button>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setShowEditModal(true)}
+          >
+            <Edit3 size={15} /> Edit Details
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => navigate(`/employees/${id}/revise`)}
+          >
+            <TrendingUp size={15} /> Revise CTC
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost text-danger"
+            onClick={handleDelete}
+            title="Delete this employee"
+          >
+            <Trash2 size={15} /> Delete
+          </button>
+        </div>
       </div>
 
       <div className="profile-grid">
@@ -236,6 +271,16 @@ export default function EmployeeProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Edit Employee Modal */}
+      {showEditModal && (
+        <EditEmployeeModal
+          employee={employee}
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          onUpdated={() => loadEmployee()}
+        />
+      )}
     </div>
   );
 }

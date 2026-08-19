@@ -331,11 +331,112 @@ async function previewCTCRevision(req, res) {
   });
 }
 
+// ─── UPDATE EMPLOYEE ─────────────────────────────────────────────────────────
+
+async function updateEmployee(req, res) {
+  const { id } = req.params;
+  const {
+    name,
+    roll_no,
+    designation,
+    department,
+    email,
+    start_date,
+    tax_regime,
+    status,
+    annual_ctc,
+  } = req.body;
+
+  const employee = await prisma.employee.findUnique({
+    where: { id },
+    include: { salary_histories: { orderBy: { effective_from: 'desc' } } },
+  });
+  if (!employee) return errorResponse(res, 'Employee not found.', 404);
+
+  // If roll_no is changed, check uniqueness
+  if (roll_no && roll_no.trim() !== employee.roll_no) {
+    const existing = await prisma.employee.findUnique({
+      where: { client_id_roll_no: { client_id: employee.client_id, roll_no: roll_no.trim() } },
+    });
+    if (existing) {
+      return errorResponse(res, `Roll No "${roll_no}" already belongs to another employee in this client.`, 409);
+    }
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const emp = await tx.employee.update({
+      where: { id },
+      data: {
+        name: name !== undefined ? name.trim() : undefined,
+        roll_no: roll_no !== undefined ? roll_no.trim() : undefined,
+        designation: designation !== undefined ? designation.trim() : undefined,
+        department: department !== undefined ? (department.trim() || null) : undefined,
+        email: email !== undefined ? (email.trim() || null) : undefined,
+        start_date: start_date ? new Date(start_date) : undefined,
+        tax_regime: tax_regime !== undefined ? tax_regime : undefined,
+        status: status !== undefined ? status : undefined,
+      },
+    });
+
+    // If annual_ctc is updated directly
+    if (annual_ctc !== undefined && Number(annual_ctc) > 0) {
+      const ctcNum = Number(annual_ctc);
+      const latestHistory = employee.salary_histories?.[0];
+      if (latestHistory && Number(latestHistory.annual_ctc) !== ctcNum) {
+        await tx.employeeSalaryHistory.update({
+          where: { id: latestHistory.id },
+          data: { annual_ctc: ctcNum },
+        });
+      }
+    }
+
+    return emp;
+  });
+
+  return successResponse(res, updated, 'Employee updated successfully.');
+}
+
+// ─── DELETE EMPLOYEE ─────────────────────────────────────────────────────────
+
+async function deleteEmployee(req, res) {
+  const { id } = req.params;
+
+  const employee = await prisma.employee.findUnique({
+    where: { id },
+    include: {
+      payroll_entries: {
+        include: { payroll_run: true },
+      },
+    },
+  });
+
+  if (!employee) return errorResponse(res, 'Employee not found.', 404);
+
+  // Check if finalized payroll exists
+  const hasFinalized = employee.payroll_entries?.some((pe) => pe.payroll_run?.status === 'FINALIZED');
+  if (hasFinalized) {
+    return errorResponse(res, 'Cannot delete an employee who has finalized payroll records. You can change their status to INACTIVE instead.', 400);
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // Delete any draft entries
+    await tx.payrollEntry.deleteMany({ where: { employee_id: id } });
+    // Delete salary histories
+    await tx.employeeSalaryHistory.deleteMany({ where: { employee_id: id } });
+    // Delete employee
+    await tx.employee.delete({ where: { id } });
+  });
+
+  return successResponse(res, { id, name: employee.name }, `Employee "${employee.name}" deleted successfully.`);
+}
+
 module.exports = {
   listEmployees,
   getEmployee,
   previewSalary,
   createEmployee,
+  updateEmployee,
+  deleteEmployee,
   reviseCTC,
   previewCTCRevision,
 };

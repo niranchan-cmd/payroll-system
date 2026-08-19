@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { Plus, Search, Users, ChevronRight } from 'lucide-react';
+import { Plus, Search, Users, ChevronRight, Edit3, Trash2, ShieldAlert } from 'lucide-react';
 import toast from 'react-hot-toast';
+import EditEmployeeModal from '../components/EditEmployeeModal';
 
 function fmtCTC(ctc) {
-  return '₹' + Number(ctc).toLocaleString('en-IN');
+  return '₹' + Number(ctc).toLocaleString('en-IN', { maximumFractionDigits: 0 });
 }
 
 export default function EmployeesPage() {
@@ -15,8 +16,9 @@ export default function EmployeesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [readiness, setReadiness] = useState(null);
+  const [editingEmp, setEditingEmp] = useState(null);
 
-  useEffect(() => {
+  const fetchEmployees = useCallback(() => {
     Promise.all([
       api.get(`/clients/${clientId}/employees`),
       api.get(`/clients/${clientId}/readiness`),
@@ -29,11 +31,34 @@ export default function EmployeesPage() {
       .finally(() => setLoading(false));
   }, [clientId]);
 
+  useEffect(() => {
+    fetchEmployees();
+  }, [fetchEmployees]);
+
+  async function handleDelete(e, emp) {
+    e.stopPropagation();
+    if (!window.confirm(`Are you sure you want to delete employee "${emp.name}" (${emp.roll_no})?`)) return;
+
+    try {
+      await api.delete(`/employees/${emp.id}`);
+      toast.success(`Employee "${emp.name}" deleted.`);
+      fetchEmployees();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete employee.');
+    }
+  }
+
+  function handleEditClick(e, emp) {
+    e.stopPropagation();
+    setEditingEmp(emp);
+  }
+
   const filtered = employees.filter(
     (e) =>
-      e.name.toLowerCase().includes(search.toLowerCase()) ||
-      e.roll_no.toLowerCase().includes(search.toLowerCase()) ||
-      (e.designation || '').toLowerCase().includes(search.toLowerCase())
+      e.name?.toLowerCase().includes(search.toLowerCase()) ||
+      e.roll_no?.toLowerCase().includes(search.toLowerCase()) ||
+      (e.designation || '').toLowerCase().includes(search.toLowerCase()) ||
+      (e.department || '').toLowerCase().includes(search.toLowerCase())
   );
 
   const isReady = readiness?.is_ready;
@@ -69,7 +94,7 @@ export default function EmployeesPage() {
 
       <div className="card">
         <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-          <div className="search-wrap">
+          <div className="search-wrap" style={{ flex: 1, maxWidth: 360 }}>
             <Search size={15} className="search-icon" />
             <input
               type="text"
@@ -110,7 +135,7 @@ export default function EmployeesPage() {
                   <th>Start Date</th>
                   <th>Annual CTC</th>
                   <th>Tax Regime</th>
-                  <th></th>
+                  <th style={{ textAlign: 'center', width: 120 }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -152,8 +177,27 @@ export default function EmployeesPage() {
                           {emp.tax_regime}
                         </span>
                       </td>
-                      <td>
-                        <ChevronRight size={16} style={{ color: 'var(--text-muted)' }} />
+                      <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: '3px 8px', fontSize: 12 }}
+                            onClick={(e) => handleEditClick(e, emp)}
+                            title="Edit Employee Details"
+                          >
+                            <Edit3 size={13} /> Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm text-danger"
+                            style={{ padding: '3px 6px' }}
+                            onClick={(e) => handleDelete(e, emp)}
+                            title="Delete Employee"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -163,6 +207,16 @@ export default function EmployeesPage() {
           </div>
         )}
       </div>
+
+      {/* Edit Employee Modal */}
+      {editingEmp && (
+        <EditEmployeeModal
+          employee={editingEmp}
+          isOpen={Boolean(editingEmp)}
+          onClose={() => setEditingEmp(null)}
+          onUpdated={() => fetchEmployees()}
+        />
+      )}
     </div>
   );
 }

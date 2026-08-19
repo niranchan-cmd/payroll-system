@@ -5,6 +5,8 @@ const {
   getEmployee,
   previewSalary,
   createEmployee,
+  updateEmployee,
+  deleteEmployee,
   reviseCTC,
   previewCTCRevision,
 } = require('../controllers/employee.controller');
@@ -23,6 +25,8 @@ module.exports = router;
 const flatRouter = express.Router();
 flatRouter.use(verifyToken);
 flatRouter.get('/:id', getEmployee);
+flatRouter.patch('/:id', requireRole('SUPER_ADMIN', 'ADMIN'), updateEmployee);
+flatRouter.delete('/:id', requireRole('SUPER_ADMIN', 'ADMIN'), deleteEmployee);
 flatRouter.post('/:id/revise-ctc', requireRole('SUPER_ADMIN', 'ADMIN'), reviseCTC);
 flatRouter.post('/:id/preview-revision', requireRole('SUPER_ADMIN', 'ADMIN'), previewCTCRevision);
 
