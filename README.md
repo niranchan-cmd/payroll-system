@@ -1,4 +1,4 @@
-# PayrollOS — Payroll Management System
+# Ploye.pe — Payroll Management System by NH Associates
 
 A full-stack payroll processing system built with React, Node.js/Express, PostgreSQL (Prisma ORM), and deployable to Vercel + Neon.
 

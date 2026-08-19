@@ -36,7 +36,7 @@ async function downloadTemplate(req, res) {
 
   // Add instructions sheet
   const instr = XLSX.utils.aoa_to_sheet([
-    ['PayEase — Bulk Employee Import Instructions'],
+    ['Ploye.pe — Bulk Employee Import Instructions'],
     [''],
     ['1. Fill data starting from Row 2 (do not delete Row 1 headers)'],
     ['2. Roll No must be unique per client'],

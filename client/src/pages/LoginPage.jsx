@@ -96,7 +96,7 @@ export default function LoginPage() {
                 letterSpacing: '-0.02em',
               }}
             >
-              PayEase
+              Ploye.pe
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>
               by NH Associates
@@ -204,7 +204,7 @@ export default function LoginPage() {
         </div>
 
         <p style={{ textAlign: 'center', marginTop: 24, fontSize: 12, color: 'var(--text-muted)' }}>
-          PayEase v1.0 — by NH Associates
+          Ploye.pe v1.0 — by NH Associates
         </p>
       </div>
     </div>

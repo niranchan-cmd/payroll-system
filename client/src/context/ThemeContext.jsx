@@ -59,12 +59,12 @@ const ThemeContext = createContext({
 
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(() => {
-    return localStorage.getItem('payease_theme') || 'midnight';
+    return localStorage.getItem('ployepe_theme') || localStorage.getItem('payease_theme') || 'midnight';
   });
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('payease_theme', theme);
+    localStorage.setItem('ployepe_theme', theme);
   }, [theme]);
 
   const setTheme = (newTheme) => {

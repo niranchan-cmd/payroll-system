@@ -33,7 +33,7 @@ export default function AppLayout() {
         <div className="sidebar-logo">
           <div className="sidebar-logo-icon">NH</div>
           <div className="sidebar-logo-text">
-            <span className="sidebar-logo-title">PayEase</span>
+            <span className="sidebar-logo-title">Ploye.pe</span>
             <span className="sidebar-logo-sub">by NH Associates</span>
           </div>
         </div>

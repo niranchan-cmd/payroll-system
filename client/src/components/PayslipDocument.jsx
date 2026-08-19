@@ -175,7 +175,7 @@ export default function PayslipDocument({ entry, client, run }) {
             * This is a computer-generated document and does not require a physical signature.
           </div>
           <div className="payslip-branding">
-            Generated via <strong>PayEase</strong> by NH Associates
+            Generated via <strong>Ploye.pe</strong> by NH Associates
           </div>
         </div>
       </div>
