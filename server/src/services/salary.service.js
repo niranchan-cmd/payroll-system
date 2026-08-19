@@ -35,12 +35,13 @@ function applyRounding(value, roundingRule) {
 
 /**
  * Find the applicable CTC Structure version for a given clientId and date.
- * Picks the most recent version whose effective_from <= targetDate.
+ * Picks the most recent version whose effective_from <= targetDate,
+ * or falls back to the client's active / initial structure if employee joined prior to version date.
  */
 async function resolveStructureForDate(clientId, targetDate) {
   const date = new Date(targetDate);
 
-  const structure = await prisma.cTCStructure.findFirst({
+  let structure = await prisma.cTCStructure.findFirst({
     where: {
       client_id: clientId,
       effective_from: { lte: date },
@@ -50,6 +51,19 @@ async function resolveStructureForDate(clientId, targetDate) {
       components: { orderBy: { display_order: 'asc' } },
     },
   });
+
+  // Fallback: If employee joined before the structure effective date, use the client's active or first structure
+  if (!structure) {
+    structure = await prisma.cTCStructure.findFirst({
+      where: {
+        client_id: clientId,
+      },
+      orderBy: [{ status: 'asc' }, { effective_from: 'asc' }],
+      include: {
+        components: { orderBy: { display_order: 'asc' } },
+      },
+    });
+  }
 
   return structure;
 }
