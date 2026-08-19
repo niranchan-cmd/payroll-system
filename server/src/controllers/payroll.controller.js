@@ -10,10 +10,9 @@ function monthName(month) {
 }
 
 /**
- * Run payroll computation for all ACTIVE employees of a client for a given month/year.
- * Returns preview data (not saved).
+ * Core computation shared by preview and run.
  */
-async function computePayroll(clientId, year, month) {
+async function computePayroll(clientId, year, month, customDaysWorkedMap = {}) {
   const client = await prisma.client.findUnique({ where: { id: clientId } });
   if (!client) throw Object.assign(new Error('Client not found.'), { status: 404 });
 
@@ -68,7 +67,8 @@ async function computePayroll(clientId, year, month) {
         continue;
       }
 
-      const entry = calculateEmployeePayroll(emp, history, structure, client, year, month);
+      const customDays = customDaysWorkedMap[emp.id] ?? customDaysWorkedMap[emp.roll_no];
+      const entry = calculateEmployeePayroll(emp, history, structure, client, year, month, customDays);
       entries.push({ ...entry, history_id: history.id });
     } catch (err) {
       errors.push({ employee: emp.name, roll_no: emp.roll_no, reason: err.message });
@@ -99,7 +99,7 @@ async function listPayrollRuns(req, res) {
 
 async function previewPayroll(req, res) {
   const { clientId } = req.params;
-  const { month, year } = req.body;
+  const { month, year, attendanceOverrides = {} } = req.body;
 
   if (!month || !year) {
     return errorResponse(res, 'month and year are required.', 400);
@@ -117,7 +117,7 @@ async function previewPayroll(req, res) {
     return errorResponse(res, `Payroll for ${monthName(m)} ${y} is already finalized.`, 409);
   }
 
-  const { entries, errors } = await computePayroll(clientId, y, m);
+  const { entries, errors } = await computePayroll(clientId, y, m, attendanceOverrides);
 
   const preview = entries.map((e) => ({
     employee_id: e.employee_id,
@@ -138,7 +138,6 @@ async function previewPayroll(req, res) {
     employer_pf: e.employer_pf,
     employer_esi: e.employer_esi,
     components: e._summary.components,
-    addedOnTop: e._summary.addedOnTop,
   }));
 
   const totals = {
@@ -159,8 +158,10 @@ async function previewPayroll(req, res) {
     already_draft: existing?.status === 'DRAFT',
     draft_run_id: existing?.id || null,
     preview,
+    entries: preview,
     totals,
     errors,
+    total_employees: preview.length,
   });
 }
 
@@ -168,7 +169,7 @@ async function previewPayroll(req, res) {
 
 async function runPayroll(req, res) {
   const { clientId } = req.params;
-  const { month, year, notes, excludedEmployeeIds = [] } = req.body;
+  const { month, year, notes, excludedEmployeeIds = [], attendanceOverrides = {} } = req.body;
 
   if (!month || !year) return errorResponse(res, 'month and year are required.', 400);
   const m = parseInt(month);
@@ -179,10 +180,10 @@ async function runPayroll(req, res) {
     where: { client_id_month_year: { client_id: clientId, month: m, year: y } },
   });
   if (existing?.status === 'FINALIZED') {
-    return errorResponse(res, `Payroll for ${monthName(m)} ${y} is already finalized.`, 409);
+    return errorResponse(res, `Payroll for ${monthName(m)} ${y} is already finalized. Cannot re-run.`, 409);
   }
 
-  let { entries, errors } = await computePayroll(clientId, y, m);
+  let { entries, errors } = await computePayroll(clientId, y, m, attendanceOverrides);
 
   // Filter out skipped/ignored employees for this month
   if (Array.isArray(excludedEmployeeIds) && excludedEmployeeIds.length > 0) {

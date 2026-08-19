@@ -78,7 +78,7 @@ function getDaysWorked(startDate, year, month, prorationsRule) {
  *
  * @returns {Object} Full payroll entry data
  */
-function calculateEmployeePayroll(employee, salaryHistory, structure, client, year, month) {
+function calculateEmployeePayroll(employee, salaryHistory, structure, client, year, month, customDaysWorked) {
   const annualCTC = Number(salaryHistory.annual_ctc);
 
   // ── Step 1: Calculate full-month salary breakdown ─────────────────────────
@@ -89,13 +89,22 @@ function calculateEmployeePayroll(employee, salaryHistory, structure, client, ye
     structure.remainder_comp
   );
 
-  // ── Step 2: Check proration ───────────────────────────────────────────────
-  const { daysWorked, totalDays, isProrated } = getDaysWorked(
+  // ── Step 2: Check proration & attendance ──────────────────────────────────
+  let { daysWorked, totalDays, isProrated } = getDaysWorked(
     employee.start_date,
     year,
     month,
     client.proration_rule || 'CALENDAR'
   );
+
+  // Override with custom attendance / days worked if provided
+  if (customDaysWorked !== undefined && customDaysWorked !== null && customDaysWorked !== '') {
+    const customDays = Number(customDaysWorked);
+    if (!isNaN(customDays) && customDays >= 0) {
+      daysWorked = Math.min(customDays, totalDays);
+      isProrated = daysWorked < totalDays;
+    }
+  }
 
   const prorFactor = totalDays > 0 ? daysWorked / totalDays : 1;
 
