@@ -282,6 +282,12 @@ export default function RunPayrollPage() {
         initialMap[entry.employee_id] = entry.days_worked;
       });
       setDaysWorkedMap(initialMap);
+      if (r.data.data.draft_notes) {
+        setNotes(r.data.data.draft_notes);
+      }
+      if (r.data.data.already_draft) {
+        toast('Loaded existing draft attendance data', { icon: '📝' });
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to generate preview.');
     } finally {
@@ -691,9 +697,9 @@ export default function RunPayrollPage() {
               disabled={running || liveTotals.activeCount === 0}
             >
               {running ? (
-                <><div className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> Processing Run...</>
+                <><div className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> {previewData.already_draft ? 'Updating Draft...' : 'Processing Run...'}</>
               ) : (
-                <><Play size={16} /> Execute Payroll Run ({liveTotals.activeCount} Employees)</>
+                <><Play size={16} /> {previewData.already_draft ? `Update Draft Payroll Run (${liveTotals.activeCount} Employees)` : `Execute Payroll Run (${liveTotals.activeCount} Employees)`}</>
               )}
             </button>
           </div>

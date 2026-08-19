@@ -109,15 +109,29 @@ async function previewPayroll(req, res) {
   if (m < 1 || m > 12) return errorResponse(res, 'month must be 1–12.', 400);
   if (y < 2020 || y > 2100) return errorResponse(res, 'year out of range.', 400);
 
-  // Check if already finalized
+  // Check if already finalized or exists as DRAFT
   const existing = await prisma.payrollRun.findUnique({
     where: { client_id_month_year: { client_id: clientId, month: m, year: y } },
+    include: { entries: true },
   });
   if (existing?.status === 'FINALIZED') {
     return errorResponse(res, `Payroll for ${monthName(m)} ${y} is already finalized.`, 409);
   }
 
-  const { entries, errors } = await computePayroll(clientId, y, m, attendanceOverrides);
+  // If a DRAFT exists and no specific overrides passed, pre-populate with previously saved draft days
+  const draftDaysMap = {};
+  if (existing?.status === 'DRAFT' && existing.entries) {
+    existing.entries.forEach((e) => {
+      draftDaysMap[e.employee_id] = Number(e.days_worked);
+    });
+  }
+
+  const effectiveAttendance = {
+    ...draftDaysMap,
+    ...attendanceOverrides,
+  };
+
+  const { entries, errors } = await computePayroll(clientId, y, m, effectiveAttendance);
 
   const preview = entries.map((e) => ({
     employee_id: e.employee_id,
@@ -157,6 +171,7 @@ async function previewPayroll(req, res) {
     month_name: monthName(m),
     already_draft: existing?.status === 'DRAFT',
     draft_run_id: existing?.id || null,
+    draft_notes: existing?.notes || '',
     preview,
     entries: preview,
     totals,
