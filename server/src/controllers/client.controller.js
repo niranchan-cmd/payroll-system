@@ -170,6 +170,13 @@ async function getClientReadiness(req, res) {
   const allPassed = items.every((i) => i.passed);
   const missing = items.filter((i) => !i.passed).map((i) => i.label);
 
+  return successResponse(res, {
+    is_ready: allPassed,
+    items,
+    missing,
+  });
+}
+
 // ─── DELETE CLIENT (PASSWORD AUTHENTICATED) ──────────────────────────────────
 
 async function deleteClient(req, res) {
