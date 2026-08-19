@@ -101,6 +101,17 @@ async function logout(req, res) {
 }
 
 /**
+ * GET /api/v1/auth/me
+ */
+async function me(req, res) {
+  const user = await prisma.user.findUnique({
+    where: { id: req.user.id },
+    select: { id: true, name: true, email: true, role: true, created_at: true },
+  });
+  return successResponse(res, user);
+}
+
+/**
  * POST /api/v1/auth/reset-password
  * Self-service password reset for registered users
  */
