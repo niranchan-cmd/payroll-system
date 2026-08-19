@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { ArrowLeft, Eye, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Eye, CheckCircle, AlertCircle, Save, Plus, UserPlus } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 function fmtINR(n) {
@@ -26,24 +26,23 @@ export default function AddEmployeePage() {
   const [preview, setPreview] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [ctcConfirmed, setCtcConfirmed] = useState(false);
 
+  // Preview calculation
   async function handlePreview(e) {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
 
     const ctc = Number(form.annual_ctc);
     if (!form.annual_ctc || ctc <= 0) {
-      toast.error('Please enter a valid Annual CTC');
+      toast.error('Please enter a valid Annual CTC first');
       return;
     }
     if (!form.start_date) {
-      toast.error('Please enter a start date');
+      toast.error('Please select a start date first');
       return;
     }
 
     setPreviewLoading(true);
     setPreview(null);
-    setCtcConfirmed(false);
 
     try {
       const r = await api.post(`/clients/${clientId}/employees/preview-salary`, {
@@ -51,29 +50,74 @@ export default function AddEmployeePage() {
         start_date: form.start_date,
       });
       setPreview(r.data.data);
+      toast.success('Salary breakdown calculated');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to generate preview');
+      toast.error(err.response?.data?.message || 'Failed to generate salary preview');
     } finally {
       setPreviewLoading(false);
     }
   }
 
-  async function handleSave() {
-    if (!preview || !ctcConfirmed) {
-      toast.error('Please review and confirm the salary preview first');
+  // Direct Save handler
+  async function handleSave(e, addAnother = false) {
+    if (e && e.preventDefault) e.preventDefault();
+
+    // Client-side validations
+    if (!form.name.trim()) {
+      toast.error('Please enter employee full name');
       return;
     }
+    if (!form.roll_no.trim()) {
+      toast.error('Please enter roll no / employee ID');
+      return;
+    }
+    if (!form.designation.trim()) {
+      toast.error('Please enter designation');
+      return;
+    }
+    if (!form.start_date) {
+      toast.error('Please enter start date of joining');
+      return;
+    }
+    const ctc = Number(form.annual_ctc);
+    if (!form.annual_ctc || isNaN(ctc) || ctc <= 0) {
+      toast.error('Please enter a valid annual CTC in Rupees');
+      return;
+    }
+
     setSaving(true);
     try {
       await api.post(`/clients/${clientId}/employees`, {
-        ...form,
-        annual_ctc: Number(form.annual_ctc),
+        name: form.name.trim(),
+        roll_no: form.roll_no.trim(),
+        designation: form.designation.trim(),
+        start_date: form.start_date,
+        annual_ctc: ctc,
+        email: form.email.trim() || undefined,
+        department: form.department.trim() || undefined,
+        tax_regime: form.tax_regime,
         confirmed: true,
       });
-      toast.success('Employee added successfully!');
-      navigate(`/clients/${clientId}/employees`);
+
+      toast.success(`Employee "${form.name}" added successfully!`);
+
+      if (addAnother) {
+        setForm({
+          name: '',
+          roll_no: '',
+          designation: '',
+          start_date: form.start_date, // keep same start date for convenience
+          annual_ctc: '',
+          email: '',
+          department: form.department,
+          tax_regime: 'NEW',
+        });
+        setPreview(null);
+      } else {
+        navigate(`/clients/${clientId}/employees`);
+      }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to save employee');
+      toast.error(err.response?.data?.message || 'Failed to save employee. Check details.');
     } finally {
       setSaving(false);
     }
@@ -82,18 +126,38 @@ export default function AddEmployeePage() {
   const monthlyCtc = form.annual_ctc ? Math.round(Number(form.annual_ctc) / 12) : null;
 
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto' }}>
+    <div style={{ maxWidth: 840, margin: '0 auto' }}>
+      {/* Header */}
       <div className="page-header">
         <div className="page-header-left">
-          <button className="btn btn-ghost btn-sm" onClick={() => navigate(-1)} style={{ marginBottom: 8 }}>
-            <ArrowLeft size={15} /> Back
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => navigate(`/clients/${clientId}/employees`)}
+            style={{ marginBottom: 8 }}
+          >
+            <ArrowLeft size={15} /> Back to Employees
           </button>
           <h1 className="page-title">Add Employee</h1>
           <p className="page-subtitle">Salary components are automatically calculated from the active CTC structure</p>
         </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={(e) => handleSave(e, false)}
+            disabled={saving}
+          >
+            {saving ? (
+              <><span className="spinner" style={{ width: 14, height: 14 }} /> Saving...</>
+            ) : (
+              <><Save size={15} /> Save Employee</>
+            )}
+          </button>
+        </div>
       </div>
 
-      <form onSubmit={handlePreview}>
+      <form onSubmit={(e) => handleSave(e, false)}>
         <div className="card" style={{ marginBottom: 20 }}>
           <div className="card-header">
             <div className="card-title">Employee Information</div>
@@ -102,46 +166,70 @@ export default function AddEmployeePage() {
             <div className="form-grid">
               <div className="form-group">
                 <label className="form-label">Full Name <span className="required">*</span></label>
-                <input className="form-input" placeholder="Rahul Kumar"
+                <input
+                  className="form-input"
+                  placeholder="e.g. Rahul Kumar"
                   value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  required
+                  autoFocus
+                />
               </div>
               <div className="form-group">
                 <label className="form-label">Roll No / Employee ID <span className="required">*</span></label>
-                <input className="form-input" placeholder="EMP001"
+                <input
+                  className="form-input"
+                  placeholder="e.g. EMP001"
                   value={form.roll_no}
-                  onChange={(e) => setForm({ ...form, roll_no: e.target.value })} required />
+                  onChange={(e) => setForm({ ...form, roll_no: e.target.value })}
+                  required
+                />
               </div>
               <div className="form-group">
                 <label className="form-label">Designation <span className="required">*</span></label>
-                <input className="form-input" placeholder="Sales Executive"
+                <input
+                  className="form-input"
+                  placeholder="e.g. Software Engineer"
                   value={form.designation}
-                  onChange={(e) => setForm({ ...form, designation: e.target.value })} required />
+                  onChange={(e) => setForm({ ...form, designation: e.target.value })}
+                  required
+                />
               </div>
               <div className="form-group">
                 <label className="form-label">Department</label>
-                <input className="form-input" placeholder="Sales"
+                <input
+                  className="form-input"
+                  placeholder="e.g. Engineering"
                   value={form.department}
-                  onChange={(e) => setForm({ ...form, department: e.target.value })} />
+                  onChange={(e) => setForm({ ...form, department: e.target.value })}
+                />
               </div>
               <div className="form-group">
-                <label className="form-label">Start Date <span className="required">*</span></label>
-                <input type="date" className="form-input"
+                <label className="form-label">Start Date / Date of Joining <span className="required">*</span></label>
+                <input
+                  type="date"
+                  className="form-input"
                   value={form.start_date}
-                  onChange={(e) => { setForm({ ...form, start_date: e.target.value }); setPreview(null); }} required />
+                  onChange={(e) => { setForm({ ...form, start_date: e.target.value }); setPreview(null); }}
+                  required
+                />
               </div>
               <div className="form-group">
-                <label className="form-label">Email</label>
-                <input type="email" className="form-input" placeholder="rahul@example.com"
+                <label className="form-label">Email Address</label>
+                <input
+                  type="email"
+                  className="form-input"
+                  placeholder="rahul@example.com"
                   value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                />
               </div>
             </div>
 
             {/* CTC Input */}
             <div className="form-group">
               <label className="form-label">Annual CTC (₹) <span className="required">*</span></label>
-              <div style={{ position: 'relative', maxWidth: 300 }}>
+              <div style={{ position: 'relative', maxWidth: 320 }}>
                 <span style={{
                   position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
                   color: 'var(--text-muted)', fontWeight: 600, fontFamily: 'var(--font-mono)'
@@ -149,7 +237,7 @@ export default function AddEmployeePage() {
                 <input
                   type="number"
                   className="form-input"
-                  placeholder="600000"
+                  placeholder="e.g. 600000"
                   min={1}
                   step={1}
                   value={form.annual_ctc}
@@ -160,7 +248,7 @@ export default function AddEmployeePage() {
               </div>
               {form.annual_ctc && Number(form.annual_ctc) > 0 && (
                 <div className="form-hint">
-                  Monthly equivalent: <strong style={{ color: 'var(--text-primary)' }}>₹{monthlyCtc?.toLocaleString('en-IN')}</strong>
+                  Monthly equivalent: <strong style={{ color: 'var(--text-primary)' }}>₹{monthlyCtc?.toLocaleString('en-IN')}</strong> / month
                 </div>
               )}
             </div>
@@ -170,8 +258,8 @@ export default function AddEmployeePage() {
               <label className="form-label">Tax Regime <span className="required">*</span></label>
               <div className="radio-group">
                 {[
-                  { value: 'NEW', label: 'New Regime', desc: 'Lower rates, fewer exemptions' },
-                  { value: 'OLD', label: 'Old Regime', desc: 'Higher rates, more exemptions' },
+                  { value: 'NEW', label: 'New Tax Regime', desc: 'Default lower tax slab rates (Section 115BAC)' },
+                  { value: 'OLD', label: 'Old Tax Regime', desc: 'Allows standard deductions, HRA, 80C exemptions' },
                 ].map((opt) => (
                   <label
                     key={opt.value}
@@ -196,27 +284,59 @@ export default function AddEmployeePage() {
           </div>
         </div>
 
-        <button
-          type="submit"
-          className="btn btn-secondary"
-          disabled={previewLoading}
-          style={{ marginBottom: 24 }}
-        >
-          {previewLoading ? (
-            <><div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Calculating...</>
-          ) : (
-            <><Eye size={15} /> Preview Salary</>
-          )}
-        </button>
+        {/* Action Buttons Bar */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={handlePreview}
+            disabled={previewLoading || !form.annual_ctc || !form.start_date}
+          >
+            {previewLoading ? (
+              <><span className="spinner" style={{ width: 14, height: 14 }} /> Calculating...</>
+            ) : (
+              <><Eye size={15} /> Preview Salary Breakdown</>
+            )}
+          </button>
+
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => navigate(`/clients/${clientId}/employees`)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={(e) => handleSave(e, true)}
+              disabled={saving}
+            >
+              <Plus size={15} /> Save & Add Another
+            </button>
+            <button
+              type="submit"
+              className="btn btn-primary btn-lg"
+              disabled={saving}
+            >
+              {saving ? (
+                <><span className="spinner" style={{ width: 16, height: 16 }} /> Saving Employee...</>
+              ) : (
+                <><Save size={16} /> Save Employee</>
+              )}
+            </button>
+          </div>
+        </div>
       </form>
 
-      {/* Salary Preview */}
+      {/* Salary Preview Component Breakdown */}
       {preview && (
-        <div className="preview-card" style={{ marginBottom: 24 }}>
+        <div className="preview-card" style={{ marginBottom: 28 }}>
           <div className="preview-header">
             <CheckCircle size={18} style={{ color: 'var(--accent)' }} />
             <div className="preview-header-title">
-              Salary Preview — {preview.structure?.version_name}
+              Calculated Salary Breakdown — {preview.structure?.version_name}
             </div>
             <div style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--accent-light)' }}>
               Effective from {new Date(preview.structure?.effective_from).toLocaleDateString('en-IN')}
@@ -253,57 +373,24 @@ export default function AddEmployeePage() {
                   </tr>
                 ))}
                 <tr className="total">
-                  <td>Total Cost to Company</td>
+                  <td>Total Cost to Company (CTC)</td>
                   <td><span className="amount">{fmtINR(preview.monthlyTotalCostToCompany)}</span></td>
                   <td><span className="amount">{fmtINR(preview.annualTotalCostToCompany)}</span></td>
                 </tr>
               </tbody>
             </table>
 
-            {/* Confirmation Checkbox */}
-            <div style={{
-              marginTop: 20,
-              padding: 16,
-              background: 'var(--bg-surface)',
-              borderRadius: 'var(--radius-md)',
-              border: `1px solid ${ctcConfirmed ? 'var(--success)' : 'var(--border-subtle)'}`,
-            }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={ctcConfirmed}
-                  onChange={(e) => setCtcConfirmed(e.target.checked)}
-                  style={{ width: 16, height: 16, accentColor: 'var(--success)' }}
-                />
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--text-primary)' }}>
-                    Annual CTC entered: {fmtINR(preview.annual_ctc)} — Monthly: {fmtINR(preview.monthlyCTC)}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                    I confirm this breakdown is correct and want to save this employee
-                  </div>
-                </div>
-              </label>
+            <div style={{ marginTop: 20, display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={(e) => handleSave(e, false)}
+                disabled={saving}
+              >
+                <CheckCircle size={15} /> Save Employee with This Structure
+              </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {preview && (
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-          <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>Cancel</button>
-          <button
-            type="button"
-            className="btn btn-success"
-            onClick={handleSave}
-            disabled={!ctcConfirmed || saving}
-          >
-            {saving ? (
-              <><div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Saving...</>
-            ) : (
-              <><CheckCircle size={15} /> Confirm & Save Employee</>
-            )}
-          </button>
         </div>
       )}
     </div>

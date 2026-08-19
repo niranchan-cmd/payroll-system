@@ -142,13 +142,7 @@ async function createEmployee(req, res) {
   } = req.body;
 
   // Require preview confirmation
-  if (!confirmed) {
-    return errorResponse(
-      res,
-      'Salary preview confirmation is required before saving. Set confirmed: true.',
-      400
-    );
-  }
+  const isConfirmed = confirmed !== undefined ? Boolean(confirmed) : true;
 
   // Required field validation
   if (!name || !roll_no || !designation || !start_date || !annual_ctc || !tax_regime) {
