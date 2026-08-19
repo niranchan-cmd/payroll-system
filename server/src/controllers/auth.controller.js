@@ -101,14 +101,78 @@ async function logout(req, res) {
 }
 
 /**
- * GET /api/v1/auth/me
+ * POST /api/v1/auth/reset-password
+ * Self-service password reset for registered users
  */
-async function me(req, res) {
-  const user = await prisma.user.findUnique({
-    where: { id: req.user.id },
-    select: { id: true, name: true, email: true, role: true, created_at: true },
-  });
-  return successResponse(res, user);
+async function resetPassword(req, res) {
+  const { email, newPassword, confirmPassword } = req.body;
+
+  if (!email || !newPassword) {
+    return errorResponse(res, 'Email and new password are required.', 400);
+  }
+
+  if (confirmPassword && newPassword !== confirmPassword) {
+    return errorResponse(res, 'Passwords do not match.', 400);
+  }
+
+  if (newPassword.length < 6) {
+    return errorResponse(res, 'Password must be at least 6 characters long.', 400);
+  }
+
+  const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+  if (!user || !user.is_active) {
+    return errorResponse(res, 'No active account found with this email address.', 404);
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+  // Update password and invalidate old refresh tokens
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword },
+    }),
+    prisma.refreshToken.deleteMany({
+      where: { user_id: user.id },
+    }),
+  ]);
+
+  return successResponse(res, { email: user.email }, 'Password reset successfully. You can now log in with your new password.');
 }
 
-module.exports = { login, refresh, logout, me };
+/**
+ * POST /api/v1/auth/change-password
+ * Authenticated password update
+ */
+async function changePassword(req, res) {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    return errorResponse(res, 'Current password and new password are required.', 400);
+  }
+
+  if (newPassword.length < 6) {
+    return errorResponse(res, 'New password must be at least 6 characters long.', 400);
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+  if (!user) {
+    return errorResponse(res, 'User not found.', 404);
+  }
+
+  const isMatch = await bcrypt.compare(currentPassword, user.password);
+  if (!isMatch) {
+    return errorResponse(res, 'Current password is incorrect.', 401);
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { password: hashedPassword },
+  });
+
+  return successResponse(res, null, 'Password changed successfully.');
+}
+
+module.exports = { login, refresh, logout, me, resetPassword, changePassword };

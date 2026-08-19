@@ -1,15 +1,17 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
-import { Eye, EyeOff, LogIn } from 'lucide-react';
+import { Eye, EyeOff, LogIn, AlertCircle, KeyRound } from 'lucide-react';
 import ThemeSelector from '../components/ThemeSelector';
+import ResetPasswordModal from '../components/ResetPasswordModal';
 
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '' });
   const [showPass, setShowPass] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -146,9 +148,26 @@ export default function LoginPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="password">
-                Password <span className="required">*</span>
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label className="form-label" htmlFor="password" style={{ marginBottom: 0 }}>
+                  Password <span className="required">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowResetModal(true)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--accent-light)',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    padding: 0,
+                  }}
+                >
+                  Forgot password?
+                </button>
+              </div>
               <div style={{ position: 'relative' }}>
                 <input
                   id="password"
@@ -207,6 +226,15 @@ export default function LoginPage() {
           Ploye.pe v1.0 — by NH Associates
         </p>
       </div>
+
+      {/* Self-service Password Reset Modal */}
+      {showResetModal && (
+        <ResetPasswordModal
+          isOpen={showResetModal}
+          initialEmail={form.email}
+          onClose={() => setShowResetModal(false)}
+        />
+      )}
     </div>
   );
 }

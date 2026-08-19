@@ -3,10 +3,11 @@ import { useAuth } from '../context/AuthContext';
 import { useClient } from '../context/ClientContext';
 import {
   LayoutDashboard, Building2, Users, LogOut, ChevronRight,
-  X, Settings, Play, FileUp, FileSpreadsheet
+  X, Settings, Play, FileUp, FileSpreadsheet, Lock
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ThemeSelector from './ThemeSelector';
+import ChangePasswordModal from './ChangePasswordModal';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
@@ -19,6 +20,8 @@ export default function AppLayout() {
   const { selectedClient, clearClient } = useClient();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const [showChangePassModal, setShowChangePassModal] = useState(false);
 
   async function handleLogout() {
     await logout();
@@ -136,6 +139,13 @@ export default function AppLayout() {
             </div>
             <button
               className="btn btn-icon btn-ghost btn-icon-sm"
+              onClick={() => setShowChangePassModal(true)}
+              data-tooltip="Change Password"
+            >
+              <Lock size={14} />
+            </button>
+            <button
+              className="btn btn-icon btn-ghost btn-icon-sm"
               onClick={handleLogout}
               data-tooltip="Logout"
             >
@@ -189,6 +199,14 @@ export default function AppLayout() {
           <Outlet />
         </main>
       </div>
+
+      {/* Change Password Modal */}
+      {showChangePassModal && (
+        <ChangePasswordModal
+          isOpen={showChangePassModal}
+          onClose={() => setShowChangePassModal(false)}
+        />
+      )}
     </div>
   );
 }
