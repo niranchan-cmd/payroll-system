@@ -1,11 +1,19 @@
+import { useRef } from 'react';
 import { Printer, X } from 'lucide-react';
 import PayslipDocument from './PayslipDocument';
+import { printElement } from '../utils/printHtml';
 
 export default function BulkPayslipsModal({ entries, client, run, onClose }) {
+  const printRef = useRef(null);
+
   if (!entries || entries.length === 0) return null;
 
   const handlePrint = () => {
-    window.print();
+    if (printRef.current) {
+      printElement(printRef.current, `Bulk_Payslips_${client?.name || 'Client'}_${run?.month}_${run?.year}`);
+    } else {
+      window.print();
+    }
   };
 
   return (
@@ -41,7 +49,7 @@ export default function BulkPayslipsModal({ entries, client, run, onClose }) {
         </div>
 
         {/* Multi-page printable bundle */}
-        <div className="payslip-printable-area bulk-payslips-container">
+        <div ref={printRef} className="payslip-printable-area bulk-payslips-container">
           {entries.map((entry, index) => (
             <div key={entry.id || index} className="bulk-payslip-page">
               <PayslipDocument entry={entry} client={client} run={run} />

@@ -1257,22 +1257,54 @@ tbody tr:hover { background: var(--bg-hover); }
 
 /* ── PRINT & PDF EXPORT MEDIA QUERY ───────────────────────── */
 @media print {
-  body {
-    background: #ffffff !important;
-    color: #000000 !important;
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm;
   }
 
-  /* Hide entire web app shell during print */
-  .app-shell, .sidebar, .topbar, .page-header, .no-print, .payslip-modal-controls {
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body, html {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Hide navigation controls, sidebar, and app chrome */
+  .sidebar, .topbar, .page-header, .no-print, .payslip-modal-controls, .btn {
     display: none !important;
   }
 
+  /* Unconstrain app shell containers */
+  .app-shell, .main-content, .page-content {
+    display: block !important;
+    position: static !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Flatten modal into printable document */
   .payslip-modal-backdrop {
     position: static !important;
     padding: 0 !important;
+    margin: 0 !important;
     background: transparent !important;
     backdrop-filter: none !important;
     overflow: visible !important;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    inset: auto !important;
+    z-index: auto !important;
   }
 
   .payslip-modal-content {
@@ -1282,23 +1314,43 @@ tbody tr:hover { background: var(--bg-hover); }
     width: 100% !important;
     background: #ffffff !important;
     border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
   }
 
   .payslip-printable-area {
     padding: 0 !important;
+    margin: 0 !important;
     background: #ffffff !important;
+    width: 100% !important;
+  }
+
+  .payslip-page-wrapper {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
   }
 
   .payslip-box {
-    border: 1.5px solid #000000 !important;
+    border: 2px solid #0f172a !important;
     box-shadow: none !important;
-    padding: 24px !important;
+    padding: 20px !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border-radius: 6px !important;
   }
 
   .bulk-payslip-page {
     page-break-after: always !important;
     break-after: page !important;
     margin-bottom: 0 !important;
+    padding: 0 !important;
+  }
+
+  .bulk-payslip-page:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
   }
 }
 

@@ -1,11 +1,19 @@
-import { Printer, X, Download } from 'lucide-react';
+import { useRef } from 'react';
+import { Printer, X } from 'lucide-react';
 import PayslipDocument from './PayslipDocument';
+import { printElement } from '../utils/printHtml';
 
 export default function PayslipModal({ entry, client, run, onClose }) {
+  const printRef = useRef(null);
+
   if (!entry) return null;
 
   const handlePrint = () => {
-    window.print();
+    if (printRef.current) {
+      printElement(printRef.current, `Payslip_${entry.employee?.name || 'Employee'}_${run?.month}_${run?.year}`);
+    } else {
+      window.print();
+    }
   };
 
   return (
@@ -41,7 +49,7 @@ export default function PayslipModal({ entry, client, run, onClose }) {
         </div>
 
         {/* The Payslip Document */}
-        <div className="payslip-printable-area">
+        <div ref={printRef} className="payslip-printable-area">
           <PayslipDocument entry={entry} client={client} run={run} />
         </div>
       </div>
