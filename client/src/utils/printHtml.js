@@ -125,37 +125,68 @@ export function printElement(element, title = 'Payslip') {
       .payslip-info-val {
         color: #0f172a;
       }
-      .payslip-table-wrapper {
-        margin-bottom: 14px;
+      .payslip-clean-section {
+        margin-bottom: 16px;
       }
-      .payslip-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 12.5px;
+      .payslip-clean-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 28px;
       }
-      .payslip-table th, .payslip-table td {
-        border: 1px solid #cbd5e1 !important;
-        padding: 7px 12px;
+      .payslip-clean-col {
+        display: flex;
+        flex-direction: column;
       }
-      .payslip-th {
-        background: #e2e8f0 !important;
-        font-weight: 800;
-        font-size: 12px;
-        letter-spacing: 0.05em;
-        color: #0f172a !important;
-        text-align: center;
-      }
-      .payslip-subth th {
-        background: #f8fafc !important;
-        color: #475569 !important;
+      .payslip-col-header {
+        display: flex;
+        justify-content: space-between;
+        padding: 6px 0;
+        border-bottom: 2px solid #0f172a;
         font-size: 11.5px;
-        font-weight: 700;
-      }
-      .payslip-tfoot-row td {
-        background: #f1f5f9 !important;
-        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
         color: #0f172a !important;
-        border-top: 2px solid #0f172a !important;
+        text-transform: uppercase;
+      }
+      .payslip-col-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+      .payslip-item-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 5px 0;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 12px;
+      }
+      .payslip-item-name {
+        color: #1e293b !important;
+        font-weight: 500;
+      }
+      .payslip-item-amount {
+        color: #0f172a !important;
+        font-weight: 700;
+        font-family: 'JetBrains Mono', 'Courier New', monospace;
+      }
+      .payslip-col-total {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-top: 2px solid #0f172a;
+        border-bottom: 1px solid #cbd5e1;
+        font-size: 12.5px;
+        font-weight: 800;
+        color: #0f172a !important;
+        margin-top: 4px;
+      }
+      .payslip-total-amount {
+        font-size: 13.5px;
+        font-weight: 800;
+        color: #0f172a !important;
+        font-family: 'JetBrains Mono', 'Courier New', monospace;
       }
       .payslip-net-box {
         display: flex;

@@ -1152,42 +1152,77 @@ tbody tr:hover { background: var(--bg-hover); }
   color: #0f172a;
 }
 
-.payslip-table-wrapper {
-  margin-bottom: 16px;
+.payslip-clean-section {
+  margin-bottom: 20px;
 }
 
-.payslip-table {
-  width: 100%;
-  border-collapse: collapse;
+.payslip-clean-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+}
+
+.payslip-clean-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.payslip-col-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 2px solid #0f172a;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #0f172a;
+  text-transform: uppercase;
+}
+
+.payslip-col-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.payslip-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid #e2e8f0;
   font-size: 12.5px;
 }
 
-.payslip-table th, .payslip-table td {
-  border: 1px solid #cbd5e1;
-  padding: 8px 12px;
+.payslip-item-name {
+  color: #1e293b;
+  font-weight: 500;
 }
 
-.payslip-th {
-  background: #e2e8f0;
-  font-weight: 800;
-  font-size: 12px;
-  letter-spacing: 0.05em;
+.payslip-item-amount {
   color: #0f172a;
-  text-align: center;
-}
-
-.payslip-subth th {
-  background: #f8fafc;
-  color: #475569;
-  font-size: 11.5px;
   font-weight: 700;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
-.payslip-tfoot-row td {
-  background: #f1f5f9;
-  font-size: 13px;
-  color: #0f172a;
+.payslip-col-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
   border-top: 2px solid #0f172a;
+  border-bottom: 1px solid #cbd5e1;
+  font-size: 13px;
+  font-weight: 800;
+  color: #0f172a;
+  margin-top: 4px;
+}
+
+.payslip-total-amount {
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
 .payslip-net-box {
