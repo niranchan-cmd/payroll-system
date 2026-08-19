@@ -168,7 +168,7 @@ async function previewPayroll(req, res) {
 
 async function runPayroll(req, res) {
   const { clientId } = req.params;
-  const { month, year, notes } = req.body;
+  const { month, year, notes, excludedEmployeeIds = [] } = req.body;
 
   if (!month || !year) return errorResponse(res, 'month and year are required.', 400);
   const m = parseInt(month);
@@ -182,10 +182,16 @@ async function runPayroll(req, res) {
     return errorResponse(res, `Payroll for ${monthName(m)} ${y} is already finalized.`, 409);
   }
 
-  const { entries, errors } = await computePayroll(clientId, y, m);
+  let { entries, errors } = await computePayroll(clientId, y, m);
+
+  // Filter out skipped/ignored employees for this month
+  if (Array.isArray(excludedEmployeeIds) && excludedEmployeeIds.length > 0) {
+    const excludedSet = new Set(excludedEmployeeIds);
+    entries = entries.filter((e) => !excludedSet.has(e.employee_id));
+  }
 
   if (entries.length === 0) {
-    return errorResponse(res, `No payroll entries computed. Errors: ${errors.map((e) => e.reason).join(', ')}`, 400);
+    return errorResponse(res, `No payroll entries to save (all employees were skipped or errored).`, 400);
   }
 
   // Upsert run record + entries in a transaction

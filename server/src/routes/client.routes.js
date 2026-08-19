@@ -6,6 +6,7 @@ const {
   createClient,
   updateClient,
   getClientReadiness,
+  deleteClient,
 } = require('../controllers/client.controller');
 const { verifyToken, requireRole } = require('../middlewares/auth.middleware');
 
@@ -15,6 +16,7 @@ router.get('/', listClients);
 router.post('/', requireRole('SUPER_ADMIN', 'ADMIN'), createClient);
 router.get('/:id', getClient);
 router.patch('/:id', requireRole('SUPER_ADMIN', 'ADMIN'), updateClient);
+router.delete('/:id', requireRole('SUPER_ADMIN', 'ADMIN'), deleteClient);
 router.get('/:id/readiness', getClientReadiness);
 
 module.exports = router;

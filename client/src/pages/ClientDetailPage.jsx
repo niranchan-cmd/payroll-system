@@ -3,9 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useClient } from '../context/ClientContext';
 import {
-  CheckCircle, XCircle, ChevronRight, Settings, Save, Users, GitBranch
+  CheckCircle, XCircle, ChevronRight, Settings, Save, Users, GitBranch, Trash2, AlertTriangle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import DeleteClientModal from '../components/DeleteClientModal';
 
 const PRORATION_OPTIONS = [
   { value: 'CALENDAR', label: 'Calendar Days', desc: 'Salary ÷ total days in month' },
@@ -16,12 +17,13 @@ const PRORATION_OPTIONS = [
 export default function ClientDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { selectClient, selectedClient } = useClient();
+  const { selectClient, selectedClient, clearClient } = useClient();
   const [client, setClient] = useState(null);
   const [readiness, setReadiness] = useState(null);
   const [form, setForm] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   async function fetchData() {
     try {
@@ -250,6 +252,32 @@ export default function ClientDetailPage() {
           <button type="submit" className="btn btn-primary" disabled={saving}>
             {saving ? <><div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Saving...</> : <><Save size={15} /> Save Settings</>}
           </button>
+
+          {/* Danger Zone */}
+          <div className="card" style={{ marginTop: 32, border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(239, 68, 68, 0.02)' }}>
+            <div className="card-header" style={{ borderBottom: '1px solid rgba(239, 68, 68, 0.15)', paddingBottom: 12 }}>
+              <div className="card-title" style={{ color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <AlertTriangle size={16} /> Danger Zone
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, flexWrap: 'wrap', gap: 14 }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--text-primary)' }}>
+                  Delete this Client Company
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                  Permanently deletes {client?.name}, all employee records, salary history, and past payroll runs. Requires password authentication.
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={() => setShowDeleteModal(true)}
+              >
+                <Trash2 size={14} /> Delete Client
+              </button>
+            </div>
+          </div>
         </form>
 
         {/* Readiness Checklist */}
@@ -290,6 +318,20 @@ export default function ClientDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Delete Client Authentication Modal */}
+      {showDeleteModal && (
+        <DeleteClientModal
+          client={client}
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onSuccess={() => {
+            setShowDeleteModal(false);
+            clearClient();
+            navigate('/clients');
+          }}
+        />
+      )}
     </div>
   );
 }

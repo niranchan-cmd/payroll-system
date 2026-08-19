@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { Plus, Search, Building2, ChevronRight } from 'lucide-react';
+import { useClient } from '../context/ClientContext';
+import { Plus, Search, Building2, ChevronRight, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import DeleteClientModal from '../components/DeleteClientModal';
 
 export default function ClientsPage() {
   const navigate = useNavigate();
+  const { selectedClient, clearClient } = useClient();
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState(null);
 
   async function fetchClients() {
     setLoading(true);
@@ -111,8 +115,21 @@ export default function ClientsPage() {
                     <td className="td-muted">
                       {new Date(c.created_at).toLocaleDateString('en-IN')}
                     </td>
-                    <td>
-                      <ChevronRight size={16} style={{ color: 'var(--text-muted)' }} />
+                    <td style={{ textAlign: 'right' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }} onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm btn-icon"
+                          style={{ color: 'var(--danger)', opacity: 0.7 }}
+                          onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                          onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
+                          onClick={() => setClientToDelete(c)}
+                          title={`Delete ${c.name} (Requires Password)`}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                        <ChevronRight size={16} style={{ color: 'var(--text-muted)' }} />
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -128,6 +145,21 @@ export default function ClientsPage() {
           onCreated={(client) => {
             setClients((prev) => [client, ...prev]);
             setShowCreate(false);
+          }}
+        />
+      )}
+
+      {clientToDelete && (
+        <DeleteClientModal
+          client={clientToDelete}
+          isOpen={Boolean(clientToDelete)}
+          onClose={() => setClientToDelete(null)}
+          onSuccess={() => {
+            if (selectedClient?.id === clientToDelete.id) {
+              clearClient();
+            }
+            setClients((prev) => prev.filter((item) => item.id !== clientToDelete.id));
+            setClientToDelete(null);
           }}
         />
       )}

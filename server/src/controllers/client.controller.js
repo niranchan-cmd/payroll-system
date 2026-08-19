@@ -1,3 +1,4 @@
+const bcrypt = require('bcryptjs');
 const prisma = require('../utils/prisma');
 const { successResponse, errorResponse } = require('../utils/response.utils');
 
@@ -169,11 +170,79 @@ async function getClientReadiness(req, res) {
   const allPassed = items.every((i) => i.passed);
   const missing = items.filter((i) => !i.passed).map((i) => i.label);
 
-  return successResponse(res, {
-    is_ready: allPassed,
-    items,
-    missing,
+// ─── DELETE CLIENT (PASSWORD AUTHENTICATED) ──────────────────────────────────
+
+async function deleteClient(req, res) {
+  const { id } = req.params;
+  const { password } = req.body;
+
+  if (!password) {
+    return errorResponse(res, 'Authentication password is required to delete a client.', 400);
+  }
+
+  // Verify client exists
+  const client = await prisma.client.findUnique({ where: { id } });
+  if (!client) {
+    return errorResponse(res, 'Client not found.', 404);
+  }
+
+  // Fetch current user with password
+  const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+  if (!user) {
+    return errorResponse(res, 'User not found.', 401);
+  }
+
+  // Role check
+  if (user.role !== 'SUPER_ADMIN' && user.role !== 'ADMIN') {
+    return errorResponse(res, 'Only administrators can delete a client company.', 403);
+  }
+
+  // Password verification
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) {
+    return errorResponse(res, 'Incorrect password. Deletion cancelled.', 401);
+  }
+
+  // Cascade delete all client related records in a transaction
+  await prisma.$transaction(async (tx) => {
+    // 1. Delete all payroll entries for this client's runs
+    const runs = await tx.payrollRun.findMany({
+      where: { client_id: id },
+      select: { id: true },
+    });
+    const runIds = runs.map((r) => r.id);
+    if (runIds.length > 0) {
+      await tx.payrollEntry.deleteMany({ where: { payroll_run_id: { in: runIds } } });
+      await tx.payrollRun.deleteMany({ where: { id: { in: runIds } } });
+    }
+
+    // 2. Delete all employees and salary histories
+    const emps = await tx.employee.findMany({
+      where: { client_id: id },
+      select: { id: true },
+    });
+    const empIds = emps.map((e) => e.id);
+    if (empIds.length > 0) {
+      await tx.employeeSalaryHistory.deleteMany({ where: { employee_id: { in: empIds } } });
+      await tx.employee.deleteMany({ where: { id: { in: empIds } } });
+    }
+
+    // 3. Delete all CTC structures & components
+    const structs = await tx.cTCStructure.findMany({
+      where: { client_id: id },
+      select: { id: true },
+    });
+    const structIds = structs.map((s) => s.id);
+    if (structIds.length > 0) {
+      await tx.cTCComponent.deleteMany({ where: { structure_id: { in: structIds } } });
+      await tx.cTCStructure.deleteMany({ where: { id: { in: structIds } } });
+    }
+
+    // 4. Delete the client
+    await tx.client.delete({ where: { id } });
   });
+
+  return successResponse(res, { id, name: client.name }, `Client "${client.name}" and all associated data deleted successfully.`);
 }
 
-module.exports = { listClients, getClient, createClient, updateClient, getClientReadiness };
+module.exports = { listClients, getClient, createClient, updateClient, getClientReadiness, deleteClient };
