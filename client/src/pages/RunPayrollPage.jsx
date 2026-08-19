@@ -1,5 +1,5 @@
-import { useState, useMemo, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useClient } from '../context/ClientContext';
 import api from '../services/api';
 import {
@@ -233,13 +233,17 @@ function EmployeeRow({ entry, isExcluded, onToggle, daysWorked, onDaysChange, cl
 
 export default function RunPayrollPage() {
   const { id: clientId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { selectedClient } = useClient();
   const fileInputRef = useRef(null);
 
   const now = new Date();
-  const [month, setMonth] = useState(now.getMonth() + 1);
-  const [year, setYear] = useState(now.getFullYear());
+  const qMonth = searchParams.get('month') ? parseInt(searchParams.get('month')) : null;
+  const qYear = searchParams.get('year') ? parseInt(searchParams.get('year')) : null;
+
+  const [month, setMonth] = useState(qMonth || now.getMonth() + 1);
+  const [year, setYear] = useState(qYear || now.getFullYear());
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [running, setRunning] = useState(false);
@@ -254,20 +258,13 @@ export default function RunPayrollPage() {
   // Attendance / Days worked overrides map: { [employee_id]: number }
   const [daysWorkedMap, setDaysWorkedMap] = useState({});
 
-  async function checkReadiness() {
-    setReadinessLoading(true);
-    try {
-      const r = await api.get(`/clients/${clientId}/readiness`);
-      setReadiness(r.data.data);
-    } catch (err) {
-      toast.error('Could not check client readiness');
-    } finally {
-      setReadinessLoading(false);
+  useEffect(() => {
+    if (qMonth && qYear) {
+      loadPreviewForMonth(qMonth, qYear);
     }
-  }
+  }, [clientId, qMonth, qYear]);
 
-  async function handlePreview(e) {
-    if (e && e.preventDefault) e.preventDefault();
+  async function loadPreviewForMonth(m, y) {
     setLoading(true);
     setPreviewData(null);
     setExcludedIds(new Set());
@@ -275,27 +272,26 @@ export default function RunPayrollPage() {
 
     try {
       const r = await api.post(`/clients/${clientId}/payroll/preview`, {
-        month: parseInt(month),
-        year: parseInt(year),
+        month: parseInt(m),
+        year: parseInt(y),
       });
       setPreviewData(r.data.data);
 
-      // Prepopulate default days worked
       const initialMap = {};
       r.data.data.entries?.forEach((entry) => {
         initialMap[entry.employee_id] = entry.days_worked;
       });
       setDaysWorkedMap(initialMap);
-
-      if (r.data.data.entries?.length === 0) {
-        toast('No active employees found for this period.', { icon: '⚠️' });
-      }
     } catch (err) {
-      const msg = err.response?.data?.message || 'Failed to generate preview.';
-      toast.error(msg);
+      toast.error(err.response?.data?.message || 'Failed to generate preview.');
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handlePreview(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    await loadPreviewForMonth(month, year);
   }
 
   // Toggle single employee skip

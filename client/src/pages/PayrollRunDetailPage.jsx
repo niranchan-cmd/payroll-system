@@ -4,7 +4,7 @@ import { useClient } from '../context/ClientContext';
 import api from '../services/api';
 import {
   Download, Lock, ChevronDown, ChevronUp, CheckCircle, Clock,
-  ArrowLeft, FileText, Printer, Eye
+  ArrowLeft, FileText, Printer, Eye, Edit3, Trash2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PayslipModal from '../components/PayslipModal';
@@ -129,7 +129,7 @@ export default function PayrollRunDetailPage() {
   useEffect(() => { fetchRun(); }, [fetchRun]);
 
   const handleFinalize = async () => {
-    if (!window.confirm('Finalize this payroll run? This cannot be undone.')) return;
+    if (!window.confirm('Finalize this payroll run? Once finalized, calculations and attendance will be permanently locked for compliance.')) return;
     setFinalizing(true);
     try {
       await api.post(`/clients/${clientId}/payroll/${runId}/finalize`);
@@ -139,6 +139,17 @@ export default function PayrollRunDetailPage() {
       toast.error(err.response?.data?.message || 'Finalization failed');
     } finally {
       setFinalizing(false);
+    }
+  };
+
+  const handleDiscard = async () => {
+    if (!window.confirm('Are you sure you want to discard this draft payroll run? All draft calculations will be deleted.')) return;
+    try {
+      await api.delete(`/clients/${clientId}/payroll/${runId}`);
+      toast.success('Draft payroll run discarded.');
+      navigate(`/clients/${clientId}/payroll`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to discard draft.');
     }
   };
 
@@ -166,7 +177,28 @@ export default function PayrollRunDetailPage() {
           <h1 className="page-title">Payroll — {periodLabel}</h1>
           <p className="page-subtitle">{clientData?.name} · Run by {run.run_by_user?.name}</p>
         </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+          {run.status === 'DRAFT' && (
+            <>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => navigate(`/clients/${clientId}/payroll/run?month=${run.month}&year=${run.year}`)}
+                title="Edit working days, LOP, and attendance for this draft"
+              >
+                <Edit3 size={15} /> Edit Draft & Attendance
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost text-danger"
+                onClick={handleDiscard}
+                title="Delete this draft run"
+              >
+                <Trash2 size={15} /> Discard Draft
+              </button>
+            </>
+          )}
+
           <button
             type="button"
             className="btn btn-secondary"
@@ -203,11 +235,45 @@ export default function PayrollRunDetailPage() {
           {run.status === 'DRAFT' && (
             <button className="btn btn-primary" onClick={handleFinalize} disabled={finalizing}>
               {finalizing ? <span className="spinner" style={{ width: 15, height: 15 }} /> : <Lock size={15} />}
-              Finalize
+              Finalize Payroll
             </button>
           )}
         </div>
       </div>
+
+      {/* DRAFT Notice Banner */}
+      {run.status === 'DRAFT' && (
+        <div className="card" style={{
+          marginBottom: 20,
+          padding: '12px 18px',
+          background: 'rgba(245, 158, 11, 0.08)',
+          borderColor: 'rgba(245, 158, 11, 0.3)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 12
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Clock size={18} style={{ color: 'var(--warning)', flexShrink: 0 }} />
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--text-primary)' }}>
+                This payroll is currently in DRAFT status
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                You can adjust attendance / working days (LOP), re-calculate, or discard this draft anytime before clicking <strong>Finalize Payroll</strong>.
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => navigate(`/clients/${clientId}/payroll/run?month=${run.month}&year=${run.year}`)}
+          >
+            <Edit3 size={13} /> Edit Days Worked / Attendance
+          </button>
+        </div>
+      )}
 
       {/* Summary cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 28 }}>

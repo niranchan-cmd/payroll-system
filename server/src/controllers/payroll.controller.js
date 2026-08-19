@@ -362,6 +362,28 @@ async function exportPayrollCSV(req, res) {
   return res.send(csv);
 }
 
+// ── DELETE DRAFT PAYROLL RUN ───────────────────────────────────────────────
+
+async function deletePayrollRun(req, res) {
+  const { clientId, runId } = req.params;
+
+  const run = await prisma.payrollRun.findFirst({
+    where: { id: runId, client_id: clientId },
+  });
+
+  if (!run) return errorResponse(res, 'Payroll run not found.', 404);
+  if (run.status === 'FINALIZED') {
+    return errorResponse(res, 'Cannot delete a finalized payroll run.', 400);
+  }
+
+  await prisma.$transaction([
+    prisma.payrollEntry.deleteMany({ where: { payroll_run_id: runId } }),
+    prisma.payrollRun.delete({ where: { id: runId } }),
+  ]);
+
+  return successResponse(res, { id: runId }, 'Draft payroll run discarded successfully.');
+}
+
 module.exports = {
   listPayrollRuns,
   previewPayroll,
@@ -369,4 +391,6 @@ module.exports = {
   getPayrollRun,
   finalizePayroll,
   exportPayrollCSV,
+  deletePayrollRun,
 };
+

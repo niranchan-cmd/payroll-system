@@ -7,6 +7,7 @@ const {
   getPayrollRun,
   finalizePayroll,
   exportPayrollCSV,
+  deletePayrollRun,
 } = require('../controllers/payroll.controller');
 const { verifyToken, requireRole } = require('../middlewares/auth.middleware');
 
@@ -29,5 +30,8 @@ router.post('/:runId/finalize', requireRole('SUPER_ADMIN', 'ADMIN'), finalizePay
 
 // GET  /clients/:clientId/payroll/:runId/export  — download CSV
 router.get('/:runId/export', exportPayrollCSV);
+
+// DELETE /clients/:clientId/payroll/:runId       — delete DRAFT run
+router.delete('/:runId', requireRole('SUPER_ADMIN', 'ADMIN'), deletePayrollRun);
 
 module.exports = router;
