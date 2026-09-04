@@ -4,7 +4,7 @@ import { useClient } from '../context/ClientContext';
 import api from '../services/api';
 import {
   Play, CheckCircle, AlertCircle, ChevronDown, ChevronUp, Info, Lock,
-  UserX, UserCheck, CheckSquare, Square, Upload, Download, FileSpreadsheet, RefreshCw
+  UserX, UserCheck, CheckSquare, Square, Upload, Download, FileSpreadsheet, RefreshCw, Clock
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
@@ -21,23 +21,44 @@ const MONTHS = [
 function fmt(n) { return Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 }); }
 
 /**
- * Calculates prorated figures for a single entry based on current daysWorked.
+ * Calculates prorated figures & Overtime for a single entry based on current daysWorked and otHours.
  */
-function calculateProratedEntry(baseEntry, customDays, clientConfig) {
+function calculateProratedEntry(baseEntry, customDays, customOtHours, clientConfig) {
   const totalDays = Number(baseEntry.total_days || 30);
   const daysWorked = customDays !== undefined ? Number(customDays) : Number(baseEntry.days_worked || totalDays);
   const factor = totalDays > 0 ? Math.max(0, Math.min(daysWorked, totalDays)) / totalDays : 1;
   const isProrated = daysWorked < totalDays;
 
-  // Prorate components
-  const proratedComps = (baseEntry.components || []).map((c) => ({
-    ...c,
-    prorated: isProrated ? Math.round(c.monthly * factor) : c.monthly,
-  }));
+  // Prorate salary components
+  const proratedComps = (baseEntry.components || [])
+    .filter((c) => !c.name.toLowerCase().includes('overtime') && !c.name.toLowerCase().includes('ot'))
+    .map((c) => ({
+      ...c,
+      prorated: isProrated ? Math.round(c.monthly * factor) : c.monthly,
+    }));
+
+  // Overtime (OT) Calculation (₹60 per OT hour for Intravision)
+  const isIntravision = clientConfig?.name?.toLowerCase().includes('intravision');
+  const otHours = (customOtHours !== undefined && customOtHours !== null && customOtHours !== '')
+    ? Math.max(0, Number(customOtHours))
+    : Number(baseEntry.ot_hours || 0);
+  const otRate = 60; // ₹60/hour for Intravision
+  const otAmount = (isIntravision || otHours > 0) ? Math.round(otHours * otRate) : 0;
+
+  if (otAmount > 0) {
+    proratedComps.push({
+      name: `Overtime (${otHours} hrs @ ₹${otRate}/hr)`,
+      monthly: 0,
+      prorated: otAmount,
+      is_taxable: true,
+      ot_hours: otHours,
+      ot_rate: otRate,
+    });
+  }
 
   const grossSalary = proratedComps.reduce((sum, c) => sum + Number(c.prorated), 0);
   const basicComp = proratedComps.find((c) => c.name.toLowerCase().includes('basic'));
-  const basicSalary = basicComp ? basicComp.prorated : Math.round(grossSalary * 0.4);
+  const basicSalary = basicComp ? basicComp.prorated : Math.round((grossSalary - otAmount) * 0.4);
 
   // PF & ESI
   const pfBasis = clientConfig?.pf_on_actual ? basicSalary : Math.min(basicSalary, 15000);
@@ -53,6 +74,8 @@ function calculateProratedEntry(baseEntry, customDays, clientConfig) {
     ...baseEntry,
     days_worked: daysWorked,
     is_prorated: isProrated,
+    ot_hours: otHours,
+    ot_amount: otAmount,
     gross_salary: grossSalary,
     basic_salary: basicSalary,
     employee_pf: employeePf,
@@ -63,13 +86,23 @@ function calculateProratedEntry(baseEntry, customDays, clientConfig) {
   };
 }
 
-function EmployeeRow({ entry, isExcluded, onToggle, daysWorked, onDaysChange, clientConfig }) {
+function EmployeeRow({
+  entry,
+  isExcluded,
+  onToggle,
+  daysWorked,
+  onDaysChange,
+  otHours,
+  onOtChange,
+  clientConfig,
+  isIntravision,
+}) {
   const [expanded, setExpanded] = useState(false);
 
-  // Live recalculate with custom days worked
+  // Live recalculate with custom days worked & OT hours
   const liveEntry = useMemo(() => {
-    return calculateProratedEntry(entry, daysWorked, clientConfig);
-  }, [entry, daysWorked, clientConfig]);
+    return calculateProratedEntry(entry, daysWorked, otHours, clientConfig);
+  }, [entry, daysWorked, otHours, clientConfig]);
 
   const lopDays = Math.max(0, Number(entry.total_days || 30) - Number(liveEntry.days_worked || 0));
 
@@ -153,6 +186,45 @@ function EmployeeRow({ entry, isExcluded, onToggle, daysWorked, onDaysChange, cl
           </div>
         </td>
 
+        {/* Overtime (OT Hours) — Specific to Intravision */}
+        {isIntravision && (
+          <td style={{ padding: '12px 14px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  placeholder="0"
+                  disabled={isExcluded}
+                  value={otHours !== undefined ? otHours : (entry.ot_hours || 0)}
+                  onChange={(e) => {
+                    const val = e.target.value === '' ? '' : Math.max(0, Number(e.target.value));
+                    onOtChange(entry.employee_id, val);
+                  }}
+                  className="form-input"
+                  style={{
+                    width: 65,
+                    padding: '4px 6px',
+                    textAlign: 'center',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    fontFamily: 'var(--font-mono)',
+                    borderColor: liveEntry.ot_hours > 0 ? 'var(--accent)' : 'var(--border-subtle)',
+                    background: isExcluded ? 'var(--bg-surface)' : liveEntry.ot_hours > 0 ? 'rgba(79, 110, 247, 0.08)' : 'var(--bg-card)',
+                  }}
+                />
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>hrs</span>
+              </div>
+              {liveEntry.ot_hours > 0 && !isExcluded && (
+                <span style={{ fontSize: 10.5, color: 'var(--accent)', fontWeight: 700 }}>
+                  +₹{fmt(liveEntry.ot_amount)} (@ ₹60/hr)
+                </span>
+              )}
+            </div>
+          </td>
+        )}
+
         {/* Gross */}
         <td style={{ padding: '12px 14px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13, textDecoration: isExcluded ? 'line-through' : 'none' }}>
           ₹{fmt(liveEntry.gross_salary)}
@@ -193,16 +265,20 @@ function EmployeeRow({ entry, isExcluded, onToggle, daysWorked, onDaysChange, cl
       {/* Expanded Breakdown */}
       {expanded && (
         <tr style={{ background: 'rgba(79, 110, 247, 0.05)' }}>
-          <td colSpan={9} style={{ padding: '0 16px 16px 44px' }}>
+          <td colSpan={isIntravision ? 10 : 9} style={{ padding: '0 16px 16px 44px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, paddingTop: 12 }}>
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8 }}>
-                  Earnings Breakdown ({liveEntry.days_worked}/{liveEntry.total_days} Days)
+                  Earnings Breakdown ({liveEntry.days_worked}/{liveEntry.total_days} Days) {liveEntry.ot_hours > 0 ? `+ ${liveEntry.ot_hours} hrs OT` : ''}
                 </div>
                 {liveEntry.components?.map((c, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 12.5, borderBottom: '1px solid var(--border-subtle)' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>{c.name}</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>₹{fmt(c.prorated ?? c.monthly)}</span>
+                    <span style={{ color: c.name.includes('Overtime') ? 'var(--accent)' : 'var(--text-secondary)', fontWeight: c.name.includes('Overtime') ? 600 : 400 }}>
+                      {c.name}
+                    </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: c.name.includes('Overtime') ? 'var(--accent)' : 'inherit' }}>
+                      ₹{fmt(c.prorated ?? c.monthly)}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -238,6 +314,10 @@ export default function RunPayrollPage() {
   const { selectedClient } = useClient();
   const fileInputRef = useRef(null);
 
+  const isIntravision = Boolean(
+    selectedClient?.name?.toLowerCase().includes('intravision')
+  );
+
   const now = new Date();
   const qMonth = searchParams.get('month') ? parseInt(searchParams.get('month')) : null;
   const qYear = searchParams.get('year') ? parseInt(searchParams.get('year')) : null;
@@ -248,8 +328,6 @@ export default function RunPayrollPage() {
   const [loading, setLoading] = useState(false);
   const [running, setRunning] = useState(false);
   const [previewData, setPreviewData] = useState(null);
-  const [readiness, setReadiness] = useState(null);
-  const [readinessLoading, setReadinessLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Skipped / Excluded Employees set
@@ -257,6 +335,9 @@ export default function RunPayrollPage() {
 
   // Attendance / Days worked overrides map: { [employee_id]: number }
   const [daysWorkedMap, setDaysWorkedMap] = useState({});
+
+  // Overtime (OT Hours) overrides map: { [employee_id]: number }
+  const [otHoursMap, setOtHoursMap] = useState({});
 
   useEffect(() => {
     if (qMonth && qYear) {
@@ -269,6 +350,7 @@ export default function RunPayrollPage() {
     setPreviewData(null);
     setExcludedIds(new Set());
     setDaysWorkedMap({});
+    setOtHoursMap({});
 
     try {
       const r = await api.post(`/clients/${clientId}/payroll/preview`, {
@@ -277,11 +359,15 @@ export default function RunPayrollPage() {
       });
       setPreviewData(r.data.data);
 
-      const initialMap = {};
+      const initialDaysMap = {};
+      const initialOtMap = {};
       r.data.data.entries?.forEach((entry) => {
-        initialMap[entry.employee_id] = entry.days_worked;
+        initialDaysMap[entry.employee_id] = entry.days_worked;
+        initialOtMap[entry.employee_id] = entry.ot_hours || 0;
       });
-      setDaysWorkedMap(initialMap);
+      setDaysWorkedMap(initialDaysMap);
+      setOtHoursMap(initialOtMap);
+
       if (r.data.data.draft_notes) {
         setNotes(r.data.data.draft_notes);
       }
@@ -323,7 +409,15 @@ export default function RunPayrollPage() {
     }));
   }
 
-  // Bulk Attendance Excel / CSV Upload
+  // Handle OT Hours change
+  function handleOtChange(empId, val) {
+    setOtHoursMap((prev) => ({
+      ...prev,
+      [empId]: val,
+    }));
+  }
+
+  // Bulk Attendance & OT Excel / CSV Upload
   function handleFileUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -346,34 +440,41 @@ export default function RunPayrollPage() {
         const headers = json[0].map((h) => String(h || '').trim().toLowerCase());
         const rollIdx = headers.findIndex((h) => h.includes('roll') || h.includes('employee id') || h.includes('empid') || h.includes('id'));
         const daysIdx = headers.findIndex((h) => h.includes('day') || h.includes('worked') || h.includes('paid') || h.includes('present') || h.includes('attendance'));
+        const otIdx = headers.findIndex((h) => h.includes('ot') || h.includes('overtime') || h.includes('extra hours'));
 
-        if (rollIdx === -1 || daysIdx === -1) {
-          toast.error('Could not find "Roll No" and "Days Worked" columns in the sheet.');
+        if (rollIdx === -1) {
+          toast.error('Could not find "Roll No" / "Employee ID" column in the sheet.');
           return;
         }
 
         let updatedCount = 0;
-        const newMap = { ...daysWorkedMap };
+        const newDaysMap = { ...daysWorkedMap };
+        const newOtMap = { ...otHoursMap };
 
         for (let i = 1; i < json.length; i++) {
           const row = json[i];
           if (!row || row.length === 0) continue;
           const rollNo = String(row[rollIdx] || '').trim();
-          const daysVal = parseFloat(row[daysIdx]);
 
-          if (rollNo && !isNaN(daysVal)) {
-            // Find employee matching rollNo
+          if (rollNo) {
             const match = previewData.entries.find((e) => e.roll_no?.toLowerCase() === rollNo.toLowerCase());
             if (match) {
-              const clamped = Math.max(0, Math.min(match.total_days || 31, daysVal));
-              newMap[match.employee_id] = clamped;
+              if (daysIdx !== -1 && !isNaN(parseFloat(row[daysIdx]))) {
+                const daysVal = parseFloat(row[daysIdx]);
+                newDaysMap[match.employee_id] = Math.max(0, Math.min(match.total_days || 31, daysVal));
+              }
+              if (otIdx !== -1 && !isNaN(parseFloat(row[otIdx]))) {
+                const otVal = parseFloat(row[otIdx]);
+                newOtMap[match.employee_id] = Math.max(0, otVal);
+              }
               updatedCount++;
             }
           }
         }
 
-        setDaysWorkedMap(newMap);
-        toast.success(`Updated attendance for ${updatedCount} employees from file!`);
+        setDaysWorkedMap(newDaysMap);
+        setOtHoursMap(newOtMap);
+        toast.success(`Updated attendance & OT for ${updatedCount} employees from file!`);
       } catch (err) {
         toast.error('Failed to parse attendance file. Please check format.');
       } finally {
@@ -383,18 +484,24 @@ export default function RunPayrollPage() {
     reader.readAsArrayBuffer(file);
   }
 
-  // Export Attendance Template (CSV)
+  // Export Attendance Template (Excel)
   function downloadAttendanceTemplate() {
     if (!previewData?.entries || previewData.entries.length === 0) return;
 
-    const data = previewData.entries.map((e) => ({
-      'Roll No': e.roll_no,
-      'Employee Name': e.name,
-      'Designation': e.designation,
-      'Total Month Days': e.total_days,
-      'Days Worked': daysWorkedMap[e.employee_id] !== undefined ? daysWorkedMap[e.employee_id] : e.days_worked,
-      'LOP Days': Math.max(0, (e.total_days || 30) - (daysWorkedMap[e.employee_id] !== undefined ? daysWorkedMap[e.employee_id] : e.days_worked)),
-    }));
+    const data = previewData.entries.map((e) => {
+      const row = {
+        'Roll No': e.roll_no,
+        'Employee Name': e.name,
+        'Designation': e.designation,
+        'Total Month Days': e.total_days,
+        'Days Worked': daysWorkedMap[e.employee_id] !== undefined ? daysWorkedMap[e.employee_id] : e.days_worked,
+        'LOP Days': Math.max(0, (e.total_days || 30) - (daysWorkedMap[e.employee_id] !== undefined ? daysWorkedMap[e.employee_id] : e.days_worked)),
+      };
+      if (isIntravision) {
+        row['OT Hours (₹60/hr)'] = otHoursMap[e.employee_id] !== undefined ? otHoursMap[e.employee_id] : (e.ot_hours || 0);
+      }
+      return row;
+    });
 
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -433,24 +540,40 @@ export default function RunPayrollPage() {
     let esi = 0;
     let deductions = 0;
     let net = 0;
+    let otHoursTotal = 0;
+    let otAmountTotal = 0;
     let activeCount = 0;
     let proratedCount = 0;
 
     allEntries.forEach((entry) => {
       if (excludedIds.has(entry.employee_id)) return;
       const customDays = daysWorkedMap[entry.employee_id];
-      const live = calculateProratedEntry(entry, customDays, selectedClient);
+      const customOt = otHoursMap[entry.employee_id];
+      const live = calculateProratedEntry(entry, customDays, customOt, selectedClient);
       gross += live.gross_salary;
       pf += live.employee_pf;
       esi += live.employee_esi;
       deductions += live.total_deductions;
       net += live.net_pay;
+      otHoursTotal += live.ot_hours || 0;
+      otAmountTotal += live.ot_amount || 0;
       activeCount++;
       if (live.is_prorated) proratedCount++;
     });
 
-    return { gross, pf, esi, deductions, net, activeCount, proratedCount, skippedCount: excludedIds.size };
-  }, [allEntries, excludedIds, daysWorkedMap, selectedClient]);
+    return {
+      gross,
+      pf,
+      esi,
+      deductions,
+      net,
+      otHoursTotal,
+      otAmountTotal,
+      activeCount,
+      proratedCount,
+      skippedCount: excludedIds.size,
+    };
+  }, [allEntries, excludedIds, daysWorkedMap, otHoursMap, selectedClient]);
 
   // Execute Payroll
   async function handleRun() {
@@ -468,6 +591,7 @@ export default function RunPayrollPage() {
         notes,
         excludedEmployeeIds: Array.from(excludedIds),
         attendanceOverrides: daysWorkedMap,
+        otOverrides: otHoursMap,
       });
 
       const runId = r.data.data?.run_id;
@@ -482,13 +606,13 @@ export default function RunPayrollPage() {
   }
 
   return (
-    <div style={{ maxWidth: 1120, margin: '0 auto' }}>
+    <div style={{ maxWidth: 1160, margin: '0 auto' }}>
       {/* Header */}
       <div className="page-header">
         <div className="page-header-left">
           <h1 className="page-title">Run Payroll</h1>
           <p className="page-subtitle">
-            Preview, customize attendance / LOP, and process monthly salaries for {selectedClient?.name || 'Client'}
+            Preview, customize attendance / LOP {isIntravision ? '& Overtime (OT @ ₹60/hr)' : ''}, and process monthly salaries for {selectedClient?.name || 'Client'}
           </p>
         </div>
       </div>
@@ -540,7 +664,7 @@ export default function RunPayrollPage() {
       {previewData && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {/* Summary Cards */}
-          <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+          <div className="stats-grid" style={{ gridTemplateColumns: isIntravision ? 'repeat(auto-fit, minmax(180px, 1fr))' : 'repeat(auto-fit, minmax(200px, 1fr))' }}>
             <div className="stat-card">
               <div className="stat-label">Total Net Payout</div>
               <div className="stat-value" style={{ color: 'var(--success)', fontSize: 24 }}>
@@ -556,6 +680,16 @@ export default function RunPayrollPage() {
               </div>
               <div className="stat-sub">Before deductions</div>
             </div>
+
+            {isIntravision && (
+              <div className="stat-card" style={{ borderColor: 'rgba(79, 110, 247, 0.3)' }}>
+                <div className="stat-label" style={{ color: 'var(--accent-light)' }}>Total Overtime (OT)</div>
+                <div className="stat-value" style={{ color: 'var(--accent-light)', fontSize: 22 }}>
+                  ₹{fmt(liveTotals.otAmountTotal)}
+                </div>
+                <div className="stat-sub">{liveTotals.otHoursTotal} OT Hours (@ ₹60/hr)</div>
+              </div>
+            )}
 
             <div className="stat-card">
               <div className="stat-label">PF & ESI Deductions</div>
@@ -645,6 +779,9 @@ export default function RunPayrollPage() {
                     <th style={{ width: 40 }}></th>
                     <th>Employee</th>
                     <th style={{ textAlign: 'center', width: 130 }}>Paid / Worked Days</th>
+                    {isIntravision && (
+                      <th style={{ textAlign: 'center', width: 140 }}>OT Hours (₹60/hr)</th>
+                    )}
                     <th style={{ textAlign: 'right' }}>Gross Salary</th>
                     <th style={{ textAlign: 'right' }}>Employee PF</th>
                     <th style={{ textAlign: 'right' }}>ESI</th>
@@ -662,12 +799,15 @@ export default function RunPayrollPage() {
                       onToggle={toggleExclude}
                       daysWorked={daysWorkedMap[entry.employee_id]}
                       onDaysChange={handleDaysChange}
+                      otHours={otHoursMap[entry.employee_id]}
+                      onOtChange={handleOtChange}
                       clientConfig={selectedClient}
+                      isIntravision={isIntravision}
                     />
                   ))}
                   {filteredEntries.length === 0 && (
                     <tr>
-                      <td colSpan={9} style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-muted)' }}>
+                      <td colSpan={isIntravision ? 10 : 9} style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-muted)' }}>
                         No employees found matching your search.
                       </td>
                     </tr>
@@ -684,7 +824,7 @@ export default function RunPayrollPage() {
               <input
                 type="text"
                 className="form-input form-input-sm"
-                placeholder="e.g. Regular monthly payroll run with LOP adjustments"
+                placeholder="e.g. Regular monthly payroll run with OT adjustments"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />

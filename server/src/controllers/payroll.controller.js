@@ -12,7 +12,7 @@ function monthName(month) {
 /**
  * Core computation shared by preview and run.
  */
-async function computePayroll(clientId, year, month, customDaysWorkedMap = {}) {
+async function computePayroll(clientId, year, month, customDaysWorkedMap = {}, customOtHoursMap = {}) {
   const client = await prisma.client.findUnique({ where: { id: clientId } });
   if (!client) throw Object.assign(new Error('Client not found.'), { status: 404 });
 
@@ -68,7 +68,8 @@ async function computePayroll(clientId, year, month, customDaysWorkedMap = {}) {
       }
 
       const customDays = customDaysWorkedMap[emp.id] ?? customDaysWorkedMap[emp.roll_no];
-      const entry = calculateEmployeePayroll(emp, history, structure, client, year, month, customDays);
+      const customOt = customOtHoursMap[emp.id] ?? customOtHoursMap[emp.roll_no];
+      const entry = calculateEmployeePayroll(emp, history, structure, client, year, month, customDays, customOt);
       entries.push({ ...entry, history_id: history.id });
     } catch (err) {
       errors.push({ employee: emp.name, roll_no: emp.roll_no, reason: err.message });
@@ -99,7 +100,7 @@ async function listPayrollRuns(req, res) {
 
 async function previewPayroll(req, res) {
   const { clientId } = req.params;
-  const { month, year, attendanceOverrides = {} } = req.body;
+  const { month, year, attendanceOverrides = {}, otOverrides = {} } = req.body;
 
   if (!month || !year) {
     return errorResponse(res, 'month and year are required.', 400);
@@ -118,11 +119,18 @@ async function previewPayroll(req, res) {
     return errorResponse(res, `Payroll for ${monthName(m)} ${y} is already finalized.`, 409);
   }
 
-  // If a DRAFT exists and no specific overrides passed, pre-populate with previously saved draft days
+  // If a DRAFT exists and no specific overrides passed, pre-populate with previously saved draft days & OT
   const draftDaysMap = {};
+  const draftOtMap = {};
   if (existing?.status === 'DRAFT' && existing.entries) {
     existing.entries.forEach((e) => {
       draftDaysMap[e.employee_id] = Number(e.days_worked);
+      try {
+        const comps = JSON.parse(e.components_json);
+        if (comps.ot_hours !== undefined) {
+          draftOtMap[e.employee_id] = Number(comps.ot_hours);
+        }
+      } catch (err) {}
     });
   }
 
@@ -131,7 +139,12 @@ async function previewPayroll(req, res) {
     ...attendanceOverrides,
   };
 
-  const { entries, errors } = await computePayroll(clientId, y, m, effectiveAttendance);
+  const effectiveOt = {
+    ...draftOtMap,
+    ...otOverrides,
+  };
+
+  const { entries, errors, client } = await computePayroll(clientId, y, m, effectiveAttendance, effectiveOt);
 
   const preview = entries.map((e) => ({
     employee_id: e.employee_id,
@@ -143,6 +156,8 @@ async function previewPayroll(req, res) {
     is_prorated: e.is_prorated,
     days_worked: e.days_worked,
     total_days: e.total_days_in_month,
+    ot_hours: e.ot_hours || 0,
+    ot_amount: e.ot_amount || 0,
     gross_salary: e.gross_salary,
     basic_salary: e.basic_salary,
     employee_pf: e.employee_pf,
@@ -161,6 +176,8 @@ async function previewPayroll(req, res) {
     total_net_pay: preview.reduce((s, e) => s + Number(e.net_pay), 0),
     total_employer_pf: preview.reduce((s, e) => s + Number(e.employer_pf), 0),
     total_employer_esi: preview.reduce((s, e) => s + Number(e.employer_esi), 0),
+    total_ot_hours: preview.reduce((s, e) => s + Number(e.ot_hours || 0), 0),
+    total_ot_amount: preview.reduce((s, e) => s + Number(e.ot_amount || 0), 0),
     employee_count: preview.length,
     prorated_count: preview.filter((e) => e.is_prorated).length,
   };
@@ -172,6 +189,7 @@ async function previewPayroll(req, res) {
     already_draft: existing?.status === 'DRAFT',
     draft_run_id: existing?.id || null,
     draft_notes: existing?.notes || '',
+    is_intravision: client?.name?.toLowerCase().includes('intravision'),
     preview,
     entries: preview,
     totals,
@@ -184,7 +202,7 @@ async function previewPayroll(req, res) {
 
 async function runPayroll(req, res) {
   const { clientId } = req.params;
-  const { month, year, notes, excludedEmployeeIds = [], attendanceOverrides = {} } = req.body;
+  const { month, year, notes, excludedEmployeeIds = [], attendanceOverrides = {}, otOverrides = {} } = req.body;
 
   if (!month || !year) return errorResponse(res, 'month and year are required.', 400);
   const m = parseInt(month);
@@ -198,7 +216,7 @@ async function runPayroll(req, res) {
     return errorResponse(res, `Payroll for ${monthName(m)} ${y} is already finalized. Cannot re-run.`, 409);
   }
 
-  let { entries, errors } = await computePayroll(clientId, y, m, attendanceOverrides);
+  let { entries, errors } = await computePayroll(clientId, y, m, attendanceOverrides, otOverrides);
 
   // Filter out skipped/ignored employees for this month
   if (Array.isArray(excludedEmployeeIds) && excludedEmployeeIds.length > 0) {

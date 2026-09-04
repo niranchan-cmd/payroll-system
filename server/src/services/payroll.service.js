@@ -78,7 +78,7 @@ function getDaysWorked(startDate, year, month, prorationsRule) {
  *
  * @returns {Object} Full payroll entry data
  */
-function calculateEmployeePayroll(employee, salaryHistory, structure, client, year, month, customDaysWorked) {
+function calculateEmployeePayroll(employee, salaryHistory, structure, client, year, month, customDaysWorked, customOtHours) {
   const annualCTC = Number(salaryHistory.annual_ctc);
 
   // ── Step 1: Calculate full-month salary breakdown ─────────────────────────
@@ -119,12 +119,31 @@ function calculateEmployeePayroll(employee, salaryHistory, structure, client, ye
     prorated: isProrated ? Math.round(c.monthly * prorFactor) : c.monthly,
   }));
 
-  // ── Step 4: Derive gross salary and basic (prorated) ─────────────────────
+  // ── Step 4: Overtime (OT) Calculation (Specific to Intravision: ₹60 / OT hour)
+  const isIntravision = client?.name?.toLowerCase().includes('intravision');
+  const otHours = (customOtHours !== undefined && customOtHours !== null && customOtHours !== '')
+    ? Math.max(0, Number(customOtHours))
+    : 0;
+  const otRate = 60; // ₹60 per OT hour for Intravision
+  const otAmount = (isIntravision || otHours > 0) ? Math.round(otHours * otRate) : 0;
+
+  if (otAmount > 0 || (isIntravision && otHours > 0)) {
+    proratedIncluded.push({
+      name: `Overtime (${otHours} hrs @ ₹${otRate}/hr)`,
+      monthly: 0,
+      prorated: otAmount,
+      is_taxable: true,
+      ot_hours: otHours,
+      ot_rate: otRate,
+    });
+  }
+
+  // ── Step 5: Derive gross salary and basic (prorated) ─────────────────────
   const grossSalary = proratedIncluded.reduce((s, c) => s + c.prorated, 0);
   const basicComp = proratedIncluded.find((c) => c.name.toLowerCase() === 'basic');
   const basicSalary = basicComp ? basicComp.prorated : 0;
 
-  // ── Step 5: Statutory deductions ─────────────────────────────────────────
+  // ── Step 6: Statutory deductions ─────────────────────────────────────────
   const { employeePF, employeeESI } = calculateStatutoryDeductions(
     basicSalary,
     grossSalary,
@@ -132,14 +151,14 @@ function calculateEmployeePayroll(employee, salaryHistory, structure, client, ye
     Boolean(client.esi_auto_apply)
   );
 
-  // ── Step 6: Employer contributions (for Cost-to-Company tracking) ─────────
+  // ── Step 7: Employer contributions (for Cost-to-Company tracking) ─────────
   const pfBasis = client.pf_on_actual ? basicSalary : Math.min(basicSalary, 15000);
   const employerPF = Math.round(pfBasis * 0.12);
   const employerESI = (client.esi_auto_apply && grossSalary <= 21000)
     ? Math.round(grossSalary * 0.0325)
     : 0;
 
-  // ── Step 7: Net pay ───────────────────────────────────────────────────────
+  // ── Step 8: Net pay ───────────────────────────────────────────────────────
   const totalDeductions = employeePF + employeeESI;
   const netPay = grossSalary - totalDeductions;
 
@@ -148,6 +167,9 @@ function calculateEmployeePayroll(employee, salaryHistory, structure, client, ye
     included: proratedIncluded,
     addedOnTop: proratedAddedOnTop,
     fullMonthlyGross: breakdown.monthlyCTC,
+    ot_hours: otHours,
+    ot_rate: otRate,
+    ot_amount: otAmount,
   });
 
   return {
@@ -156,6 +178,8 @@ function calculateEmployeePayroll(employee, salaryHistory, structure, client, ye
     total_days_in_month: totalDays,
     days_worked: daysWorked,
     is_prorated: isProrated,
+    ot_hours: otHours,
+    ot_amount: otAmount,
     components_json: componentsJson,
     gross_salary: grossSalary,
     basic_salary: basicSalary,

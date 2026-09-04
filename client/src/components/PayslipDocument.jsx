@@ -146,6 +146,14 @@ export default function PayslipDocument({ entry, client, run }) {
               {entry.is_prorated && <span style={{ color: '#b45309', fontWeight: 600, marginLeft: 6 }}>(Prorated)</span>}
             </span>
           </div>
+          {(entry.ot_hours > 0 || comps.ot_hours > 0) && (
+            <div className="payslip-info-row">
+              <span className="payslip-info-label">Overtime (OT):</span>
+              <span className="payslip-info-val">
+                <strong style={{ color: '#2563eb' }}>{entry.ot_hours || comps.ot_hours} Hours</strong> (@ ₹60/hr)
+              </span>
+            </div>
+          )}
         </div>
 
         {/* ── Clean Modern Side-by-Side Breakdown (NO Heavy Box Grid) ────── */}
