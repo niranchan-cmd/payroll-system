@@ -199,3 +199,18 @@ model PayrollEntry {
   employee        Employee             @relation(fields: [employee_id], references: [id])
   salary_history  EmployeeSalaryHistory @relation(fields: [salary_history_id], references: [id])
 }
+
+// ─── LEADS & INQUIRIES ────────────────────────────────────────────────────────
+
+model Lead {
+  id           String   @id @default(uuid())
+  name         String
+  email        String
+  phone        String
+  company_name String
+  team_size    String   // "1-20" | "21-100" | "101-500" | "500+"
+  notes        String?
+  status       String   @default("NEW") // "NEW" | "CONTACTED" | "CONVERTED"
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+}
