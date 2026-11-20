@@ -9,9 +9,8 @@ const api = axios.create({
 });
 
 // ─── Request Interceptor ──────────────────────────────────────────────────────
-// Attach access token from memory (set by auth context)
 api.interceptors.request.use((config) => {
-  const token = window.__payroll_access_token__;
+  const token = window.__payroll_access_token__ || localStorage.getItem('payroll_access_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -38,7 +37,7 @@ api.interceptors.response.use(
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
-      !originalRequest.url.includes('/auth/')
+      !originalRequest.url?.includes('/auth/')
     ) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
@@ -62,12 +61,15 @@ api.interceptors.response.use(
         );
         const newToken = res.data.data.accessToken;
         window.__payroll_access_token__ = newToken;
+        localStorage.setItem('payroll_access_token', newToken);
         processQueue(null, newToken);
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
         window.__payroll_access_token__ = null;
+        localStorage.removeItem('payroll_access_token');
+        localStorage.removeItem('payroll_user');
         window.dispatchEvent(new CustomEvent('auth:logout'));
         return Promise.reject(refreshError);
       } finally {
