@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import { 
@@ -10,6 +11,7 @@ import {
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [scrollY, setScrollY] = useState(0);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [stageProgress, setStageProgress] = useState(0);
@@ -226,20 +228,43 @@ export default function LandingPage() {
 
           {/* Action CTAs */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <button
-              onClick={() => navigate('/login')}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#334155',
-                fontSize: 14,
-                fontWeight: 700,
-                cursor: 'pointer',
-                padding: '8px 14px',
-              }}
-            >
-              Client Login
-            </button>
+            {user ? (
+              <button
+                onClick={() => navigate('/dashboard')}
+                style={{
+                  backgroundColor: '#023326',
+                  color: '#FFFFFF',
+                  borderRadius: 9999,
+                  fontSize: 13.5,
+                  fontWeight: 800,
+                  padding: '9px 18px',
+                  border: '1px solid #10B981',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  boxShadow: '0 4px 12px rgba(2, 51, 38, 0.2)',
+                }}
+              >
+                <span>Dashboard ({user.name?.split(' ')[0] || 'User'})</span>
+                <ArrowRight size={14} color="#10B981" />
+              </button>
+            ) : (
+              <button
+                onClick={() => navigate('/login')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#334155',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  padding: '8px 14px',
+                }}
+              >
+                Client Login
+              </button>
+            )}
             <button
               onClick={() => setShowModal(true)}
               style={{
