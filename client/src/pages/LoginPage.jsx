@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
-import { Eye, EyeOff, LogIn, AlertCircle, KeyRound } from 'lucide-react';
+import { Eye, EyeOff, LogIn, AlertTriangle, ShieldAlert } from 'lucide-react';
 import ThemeSelector from '../components/ThemeSelector';
 import ResetPasswordModal from '../components/ResetPasswordModal';
 
@@ -15,6 +15,31 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Lockout & Inactivity state
+  const [lockoutInfo, setLockoutInfo] = useState(null); // { remainingMinutes }
+  const [attemptsLeft, setAttemptsLeft] = useState(null);
+  const [countdown, setCountdown] = useState(null); // seconds
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const inactivityLogout = searchParams.get('reason') === 'inactivity';
+
+  // Lockout countdown timer
+  useEffect(() => {
+    if (!lockoutInfo) return;
+    let seconds = (lockoutInfo.remainingMinutes || 10) * 60;
+    setCountdown(seconds);
+    const interval = setInterval(() => {
+      seconds -= 1;
+      setCountdown(seconds);
+      if (seconds <= 0) {
+        clearInterval(interval);
+        setLockoutInfo(null);
+        setCountdown(null);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [lockoutInfo]);
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
@@ -24,8 +49,19 @@ export default function LoginPage() {
       toast.success('Welcome back!');
       navigate('/');
     } catch (err) {
-      const msg = err.response?.data?.message || 'Login failed. Check your credentials.';
-      setError(msg);
+      if (err.response?.status === 429) {
+        const remainingMinutes = err.response.data?.remainingMinutes || 10;
+        setLockoutInfo({ remainingMinutes });
+        setAttemptsLeft(null);
+        setError(`Account locked. Try again in ${remainingMinutes} minutes.`);
+      } else if (err.response?.status === 401 && err.response.data?.attemptsRemaining !== undefined) {
+        setAttemptsLeft(err.response.data.attemptsRemaining);
+        setLockoutInfo(null);
+        setError(`Invalid credentials. ${err.response.data.attemptsRemaining} attempt(s) remaining before account lockout.`);
+      } else {
+        const msg = err.response?.data?.message || 'Login failed. Check your credentials.';
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -122,7 +158,78 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {error && (
+          {/* Inactivity Logout Notice */}
+          {inactivityLogout && (
+            <div
+              style={{
+                background: 'rgba(234, 179, 8, 0.1)',
+                border: '1px solid rgba(234, 179, 8, 0.3)',
+                borderRadius: 'var(--radius-md)',
+                padding: '12px 14px',
+                marginBottom: 20,
+                color: '#eab308',
+                fontSize: 13,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+              }}
+            >
+              <AlertTriangle size={18} style={{ flexShrink: 0 }} />
+              <span>You were automatically signed out due to 30 minutes of inactivity for security.</span>
+            </div>
+          )}
+
+          {/* Lockout Active Banner */}
+          {lockoutInfo && countdown !== null && (
+            <div
+              style={{
+                background: 'rgba(239, 68, 68, 0.12)',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                borderRadius: 'var(--radius-md)',
+                padding: '12px 14px',
+                marginBottom: 20,
+                color: '#ef4444',
+                fontSize: 13,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+              }}
+            >
+              <ShieldAlert size={20} style={{ flexShrink: 0 }} />
+              <div>
+                <strong style={{ display: 'block', marginBottom: 2 }}>Account Locked</strong>
+                Too many failed attempts. Try again in{' '}
+                <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                  {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, '0')}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Attempts remaining warning */}
+          {attemptsLeft !== null && !lockoutInfo && (
+            <div
+              style={{
+                background: 'rgba(249, 115, 22, 0.12)',
+                border: '1px solid rgba(249, 115, 22, 0.4)',
+                borderRadius: 'var(--radius-md)',
+                padding: '10px 14px',
+                marginBottom: 20,
+                color: '#f97316',
+                fontSize: 13,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+              <span>
+                Incorrect password. <strong>{attemptsLeft}</strong> attempt{attemptsLeft !== 1 ? 's' : ''} remaining before temporary lockout.
+              </span>
+            </div>
+          )}
+
+          {error && !lockoutInfo && attemptsLeft === null && (
             <div className="alert alert-danger" style={{ marginBottom: 20 }}>
               <span>⚠</span>
               <span>{error}</span>
@@ -144,6 +251,7 @@ export default function LoginPage() {
                 required
                 autoFocus
                 autoComplete="email"
+                disabled={loading || !!lockoutInfo}
               />
             </div>
 
@@ -155,6 +263,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowResetModal(true)}
+                  disabled={loading || !!lockoutInfo}
                   style={{
                     background: 'none',
                     border: 'none',
@@ -178,6 +287,7 @@ export default function LoginPage() {
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                   required
                   autoComplete="current-password"
+                  disabled={loading || !!lockoutInfo}
                   style={{ paddingRight: 48 }}
                 />
                 <button
@@ -204,13 +314,18 @@ export default function LoginPage() {
             <button
               type="submit"
               className="btn btn-primary btn-lg"
-              disabled={loading}
+              disabled={loading || !!lockoutInfo}
               style={{ marginTop: 8 }}
             >
               {loading ? (
                 <>
                   <div className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />
                   Signing in...
+                </>
+              ) : lockoutInfo ? (
+                <>
+                  <ShieldAlert size={16} />
+                  Locked Out
                 </>
               ) : (
                 <>
