@@ -6,6 +6,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
+const { globalLimiter } = require('./middlewares/rateLimiter.middleware');
 
 const authRoutes = require('./routes/auth.routes');
 const clientRoutes = require('./routes/client.routes');
@@ -24,6 +25,7 @@ const PORT = process.env.PORT || 5000;
 // ─── MIDDLEWARE ───────────────────────────────────────────────────────────────
 
 app.use(helmet());
+
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
@@ -41,15 +43,19 @@ app.use(
       ) {
         return callback(null, true);
       }
-      return callback(null, true); // Permissive for API
+      return callback(new Error('Not allowed by CORS'), false);
     },
     credentials: true,
   })
 );
+
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// ─── GLOBAL RATE LIMITING ──────────────────────────────────────────────────────
+app.use('/api/', globalLimiter);
 
 // ─── ROUTES ───────────────────────────────────────────────────────────────────
 
@@ -91,7 +97,13 @@ app.use((req, res) => {
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
-  console.error('[ERROR]', err);
+  if (process.env.NODE_ENV !== 'production') {
+    console.error('[ERROR]', err);
+  }
+
+  if (err.message === 'Not allowed by CORS') {
+    return errorResponse(res, 'CORS policy violation.', 403);
+  }
 
   // Prisma known errors
   if (err.code === 'P2002') {
@@ -106,8 +118,6 @@ app.use((err, req, res, next) => {
 
 // ─── START ────────────────────────────────────────────────────────────────────
 
-// In Vercel serverless, the file is imported — don't call listen().
-// In local dev (direct node invocation), listen normally.
 if (process.env.VERCEL !== '1') {
   app.listen(PORT, () => {
     console.log(`\n🚀 Payroll Server running on http://localhost:${PORT}`);
