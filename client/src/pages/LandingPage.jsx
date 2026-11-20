@@ -6,7 +6,8 @@ import toast from 'react-hot-toast';
 import { 
   CheckCircle2, ArrowRight, ShieldCheck, Zap, TrendingUp, 
   Users, Building2, FileSpreadsheet, Lock, Clock, Check,
-  ChevronRight, PhoneCall, Sparkles, Send, ShieldAlert, Cpu
+  ChevronRight, PhoneCall, Sparkles, Send, ShieldAlert, Cpu,
+  Laptop, Briefcase
 } from 'lucide-react';
 
 export default function LandingPage() {
@@ -31,6 +32,7 @@ export default function LandingPage() {
     phone: '',
     company_name: '',
     team_size: '51-200',
+    service_interest: 'SOFTWARE_LICENSE',
     notes: '',
   });
 
@@ -131,7 +133,7 @@ export default function LandingPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await api.post('/leads', form);
+      await api.post('/leads', { ...form, notes: `[Model: ${form.service_interest}] ${form.notes || ''}`.trim() });
       toast.success('Inquiry received! We will call you within 15 minutes.');
       setSubmitted(true);
     } catch (err) {
@@ -220,6 +222,7 @@ export default function LandingPage() {
 
           {/* Nav Links */}
           <nav style={{ display: 'flex', alignItems: 'center', gap: 32, fontSize: 13.5, fontWeight: 600, color: '#475569' }}>
+            <a href="#usp" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.15s' }}>Our USP (2 Models)</a>
             <a href="#engine" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.15s' }}>Automated Engine</a>
             <a href="#stats" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.15s' }}>Compliance Metrics</a>
             <a href="#calculator" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.15s' }}>Impact Calculator</a>
@@ -593,6 +596,251 @@ export default function LandingPage() {
             <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em', color: '#334155' }}>ORION CAPITAL</span>
             <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em', color: '#334155' }}>KAPITAL FINCORP</span>
           </div>
+        </div>
+      </section>
+
+      {/* ── OUR CORE USP: DUAL MODEL (SOFTWARE OR MANAGED CA) ────────── */}
+      <section id="usp" style={{ padding: '96px 24px', backgroundColor: '#FFFFFF', borderBottom: '1px solid #F1F5F9' }}>
+        <div className="scroll-animate" style={{ maxWidth: 1240, margin: '0 auto' }}>
+          
+          <div style={{ textAlign: 'center', maxWidth: 880, margin: '0 auto 64px auto' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 800, color: '#10B981', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>
+              <Sparkles size={14} />
+              THE PLOY.PE DUAL-MODEL ADVANTAGE
+            </div>
+            <h2 style={{ fontSize: 'clamp(32px, 4.4vw, 52px)', fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1.12, color: '#0F172A', marginBottom: 18 }}>
+              We run your payroll, or empower you to run it yourself. <br />
+              <span style={{ color: '#023326', textDecoration: 'underline', textDecorationColor: '#10B981', textUnderlineOffset: 6 }}>
+                That’s our core USP.
+              </span>
+            </h2>
+            <p style={{ fontSize: 17, color: '#64748B', lineHeight: 1.6, fontWeight: 500 }}>
+              Pure software vendors won’t touch your statutory filings. Traditional CA firms drown you in manual spreadsheets. 
+              <strong> NH Associates bridges both worlds:</strong> use our enterprise software in-house, or let our veteran CAs handle everything for you.
+            </p>
+          </div>
+
+          {/* 2-Track Comparative Grid (Unboxed, High Craft) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 36, marginBottom: 48 }}>
+            
+            {/* Track 1: Software License (Self-Serve) */}
+            <div
+              style={{
+                borderLeft: '4px solid #10B981',
+                padding: '36px 32px',
+                backgroundColor: '#F8FAFC',
+                borderRadius: '0 16px 16px 0',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                transition: 'all 0.25s ease',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 9999, backgroundColor: '#D1FAE5', color: '#065F46', letterSpacing: '0.05em' }}>
+                    TRACK A · SELF-MANAGED SAAS
+                  </span>
+                  <Laptop size={22} color="#10B981" />
+                </div>
+                <h3 style={{ fontSize: 24, fontWeight: 900, color: '#0F172A', marginBottom: 12 }}>
+                  Buy Ploy.pe Software License
+                </h3>
+                <p style={{ fontSize: 14.5, color: '#475569', lineHeight: 1.6, marginBottom: 24 }}>
+                  Empower your internal HR, People Ops, and Finance teams with the modern Ploy.pe platform. Run enterprise multi-tier payroll and CTC structures completely in-house with zero touch.
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
+                  {[
+                    'Full Cloud SaaS Access with Role-Based Access Control',
+                    'Automated Indian Statutory Engine (EPF, ESIC, PT, TDS)',
+                    'Instant WhatsApp & Password-Encrypted PDF Payslips',
+                    'Direct Corporate Bank Integration (ICICI, HDFC, Axis, SBI)',
+                    'Multi-Entity & Unlimited Department Hierarchy Support',
+                  ].map((feat, idx) => (
+                    <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13.5, color: '#334155' }}>
+                      <CheckCircle2 size={16} color="#10B981" style={{ flexShrink: 0, marginTop: 2 }} />
+                      <span>{feat}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: 20, marginBottom: 20 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#64748B' }}>BEST SUITED FOR:</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: '#0F172A', marginTop: 4 }}>
+                    Companies with an existing HR/payroll team wanting 10x faster automation.
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setForm(prev => ({ ...prev, service_interest: 'SOFTWARE_LICENSE' }));
+                    document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '13px',
+                    borderRadius: 10,
+                    backgroundColor: '#FFFFFF',
+                    border: '1.5px solid #023326',
+                    color: '#023326',
+                    fontSize: 14,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#023326';
+                    e.currentTarget.style.color = '#FFFFFF';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#FFFFFF';
+                    e.currentTarget.style.color = '#023326';
+                  }}
+                >
+                  Deploy Software In-House
+                  <ArrowRight size={15} />
+                </button>
+              </div>
+            </div>
+
+            {/* Track 2: Fully Managed Payroll Outsourcing */}
+            <div
+              style={{
+                borderLeft: '4px solid #023326',
+                padding: '36px 32px',
+                backgroundColor: '#F0FDF4',
+                borderRadius: '0 16px 16px 0',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                transition: 'all 0.25s ease',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 9999, backgroundColor: '#023326', color: '#A7F3D0', letterSpacing: '0.05em' }}>
+                    TRACK B · MANAGED CA OUTSOURCING
+                  </span>
+                  <Briefcase size={22} color="#023326" />
+                </div>
+                <h3 style={{ fontSize: 24, fontWeight: 900, color: '#0F172A', marginBottom: 12 }}>
+                  Full Managed Payroll Outsourcing
+                </h3>
+                <p style={{ fontSize: 14.5, color: '#334155', lineHeight: 1.6, marginBottom: 24 }}>
+                  Outsource your complete payroll function to NH Associates. Our seasoned Chartered Accountants calculate, disburse, and file all statutory returns with 100% legal indemnity.
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
+                  {[
+                    'End-to-End Execution by Dedicated NH Associates CA Specialists',
+                    'Monthly EPFO ECR, ESIC, PT, and 24Q TDS Returns Filed For You',
+                    'Direct Salary Disbursal Execution & Employee Tax Helpdesk',
+                    'Annual Form 16 Generation & Full Statutory Audit Representation',
+                    'Live Executive Client Dashboard to review and approve in real time',
+                  ].map((feat, idx) => (
+                    <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13.5, color: '#166534' }}>
+                      <CheckCircle2 size={16} color="#15803D" style={{ flexShrink: 0, marginTop: 2 }} />
+                      <span>{feat}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ borderTop: '1px solid #BBF7D0', paddingTop: 20, marginBottom: 20 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#166534' }}>BEST SUITED FOR:</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: '#064E3B', marginTop: 4 }}>
+                    Startups & enterprises wanting zero payroll headaches and zero penalty risks.
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setForm(prev => ({ ...prev, service_interest: 'MANAGED_OUTSOURCING' }));
+                    document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '13px',
+                    borderRadius: 10,
+                    backgroundColor: '#023326',
+                    color: '#FFFFFF',
+                    fontSize: 14,
+                    fontWeight: 800,
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    boxShadow: '0 6px 18px rgba(2, 51, 38, 0.25)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  Outsource to NH Associates
+                  <ArrowRight size={15} color="#10B981" />
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+          {/* The Hybrid Bridge Callout */}
+          <div
+            style={{
+              padding: '24px 32px',
+              borderRadius: 14,
+              border: '1px dashed #CBD5E1',
+              backgroundColor: '#FAFAFA',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 16,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: '#E6F4EA', color: '#023326', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 18 }}>
+                ⇄
+              </div>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#0F172A' }}>
+                  The Hybrid Guarantee: Start Managed, Migrate In-House Whenever You Want.
+                </div>
+                <div style={{ fontSize: 13, color: '#64748B', marginTop: 2 }}>
+                  Many clients have our CAs run payroll while growing, then switch to running Ploy.pe in-house seamlessly without data migration.
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setForm(prev => ({ ...prev, service_interest: 'HYBRID' }));
+                document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#023326',
+                fontWeight: 800,
+                fontSize: 13.5,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                textDecoration: 'underline',
+              }}
+            >
+              Discuss Custom Hybrid Setup →
+            </button>
+          </div>
+
         </div>
       </section>
 
@@ -1256,10 +1504,36 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              <div style={{ marginBottom: 24 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
-                  Current Total Headcount
-                </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20, marginBottom: 24 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                    What are you looking for? (Our USP) *
+                  </label>
+                  <select
+                    value={form.service_interest}
+                    onChange={(e) => setForm({ ...form, service_interest: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px',
+                      borderRadius: 8,
+                      border: '1.5px solid #023326',
+                      fontSize: 14,
+                      outline: 'none',
+                      backgroundColor: '#F0FDF4',
+                      fontWeight: 700,
+                      color: '#023326',
+                    }}
+                  >
+                    <option value="SOFTWARE_LICENSE">Software License (Run HR In-House)</option>
+                    <option value="MANAGED_OUTSOURCING">Managed Payroll (NH Associates Runs It)</option>
+                    <option value="HYBRID">Both / Hybrid Consultation</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                    Current Total Headcount
+                  </label>
                 <select
                   value={form.team_size}
                   onChange={(e) => setForm({ ...form, team_size: e.target.value })}
@@ -1279,6 +1553,7 @@ export default function LandingPage() {
                   <option value="201-1000">201 - 1,000 Employees (Enterprise)</option>
                   <option value="1000+">1,000+ Employees (Conglomerate)</option>
                 </select>
+                </div>
               </div>
 
               <button
