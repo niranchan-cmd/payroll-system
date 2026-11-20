@@ -47,7 +47,7 @@ export default function LoginPage() {
     try {
       await login(form.email.trim(), form.password);
       toast.success('Welcome back!');
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       if (err.response?.status === 429) {
         const remainingMinutes = err.response.data?.remainingMinutes || 10;
