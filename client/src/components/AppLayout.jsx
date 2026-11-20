@@ -39,9 +39,9 @@ export default function AppLayout() {
       {/* ── Sidebar ──────────────────────────────────────── */}
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <div className="sidebar-logo-icon">NH</div>
+          <div className="sidebar-logo-icon" style={{ backgroundColor: "#023326", color: "#10B981", fontWeight: 900 }}>P</div>
           <div className="sidebar-logo-text">
-            <span className="sidebar-logo-title">Ploye.pe</span>
+            <span className="sidebar-logo-title">Ploy.pe</span>
             <span className="sidebar-logo-sub">by NH Associates</span>
           </div>
         </div>
