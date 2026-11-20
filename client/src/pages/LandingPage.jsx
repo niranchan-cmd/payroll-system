@@ -220,17 +220,18 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Nav Links */}
-          <nav style={{ display: 'flex', alignItems: 'center', gap: 32, fontSize: 13.5, fontWeight: 600, color: '#475569' }}>
-            <a href="#usp" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.15s' }}>Our USP (2 Models)</a>
-            <a href="#engine" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.15s' }}>Automated Engine</a>
-            <a href="#stats" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.15s' }}>Compliance Metrics</a>
-            <a href="#calculator" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.15s' }}>Impact Calculator</a>
+          {/* Nav Links (Clean, No-Wrap, Well-Aligned) */}
+          <nav style={{ display: 'flex', alignItems: 'center', gap: 20, fontSize: 13, fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>
+            <a href="#usp" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.15s' }}>Our Models</a>
+            <a href="#engine" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.15s' }}>Automation</a>
+            <a href="#security" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.15s' }}>Confidentiality</a>
+            <a href="#stats" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.15s' }}>Compliance</a>
+            <a href="#calculator" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.15s' }}>Estimator</a>
             <a href="#contact" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.15s' }}>Contact</a>
           </nav>
 
           {/* Action CTAs */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
             {user ? (
               <button
                 onClick={() => navigate('/dashboard')}
@@ -240,7 +241,7 @@ export default function LandingPage() {
                   borderRadius: 9999,
                   fontSize: 13.5,
                   fontWeight: 800,
-                  padding: '9px 18px',
+                  padding: '8px 14px', fontSize: 13, whiteSpace: 'nowrap',
                   border: '1px solid #10B981',
                   cursor: 'pointer',
                   display: 'flex',
@@ -472,7 +473,7 @@ export default function LandingPage() {
             }}
           >
             <ShieldCheck size={16} color="#10B981" />
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#0F172A' }}>ICICI / HDFC API Linked</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#0F172A' }}>100% Confidential & Secure</span>
           </div>
 
           {/* 3D Dynamic Perspective Card (Straightens & Scales on Scroll) */}
@@ -655,7 +656,7 @@ export default function LandingPage() {
                     'Full Cloud SaaS Access with Role-Based Access Control',
                     'Automated Indian Statutory Engine (EPF, ESIC, PT, TDS)',
                     'Instant WhatsApp & Password-Encrypted PDF Payslips',
-                    'Direct Corporate Bank Integration (ICICI, HDFC, Axis, SBI)',
+                    'Direct Corporate Bank Integration & Batch Disbursal',
                     'Multi-Entity & Unlimited Department Hierarchy Support',
                   ].map((feat, idx) => (
                     <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13.5, color: '#334155' }}>
@@ -844,29 +845,17 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── PINNED 3-PHASE STAGE (The Engineered Peak) ──────────────── */}
-      {/* Container height is 240vh to create the scroll runway */}
+      {/* ── 3-PHASE AUTOMATION ENGINE (Clean, Responsive, No Blank Gap) ─ */}
       <section
         id="engine"
         ref={stageRef}
         style={{
-          position: 'relative',
-          height: '240vh',
+          padding: '88px 24px',
           backgroundColor: '#FFFFFF',
+          borderBottom: '1px solid #F1F5F9',
         }}
       >
-        {/* Sticky Viewport Container */}
-        <div
-          style={{
-            position: 'sticky',
-            top: 76,
-            height: 'calc(100vh - 76px)',
-            display: 'flex',
-            alignItems: 'center',
-            overflow: 'hidden',
-          }}
-        >
-          <div style={{ maxWidth: 1240, margin: '0 auto', padding: '0 24px', width: '100%' }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto' }}>
             
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 440px) 1fr', gap: 60, alignItems: 'center' }}>
               
@@ -1088,7 +1077,7 @@ export default function LandingPage() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                         {[
                           { name: 'Rahul Sharma', role: 'Staff Software Eng', bank: 'HDFC Bank · IFSC HDFC000123', status: 'VERIFIED' },
-                          { name: 'Priya Nair', role: 'Product Lead', bank: 'ICICI Bank · IFSC ICIC000456', status: 'VERIFIED' },
+                          { name: 'Priya Nair', role: 'Product Lead', bank: 'Corporate Salary Bank · Verified Account', status: 'VERIFIED' },
                           { name: 'Amit Verma', role: 'Operations Exec', bank: 'Axis Bank · IFSC UTIB000789', status: 'VERIFIED' },
                           { name: 'Sneha Reddy', role: 'Account Director', bank: 'SBI · IFSC SBIN000321', status: 'VERIFIED' },
                         ].map((emp, i) => (
@@ -1175,7 +1164,7 @@ export default function LandingPage() {
                             </div>
                             <div>
                               <div style={{ fontWeight: 800, color: '#0F172A', fontSize: 14 }}>Bank Disbursal Batch #8812</div>
-                              <div style={{ fontSize: 11, color: '#047857' }}>Net Payable: ₹40,50,400 via ICICI API</div>
+                              <div style={{ fontSize: 11, color: '#047857' }}>Net Payable: ₹40,50,400 via Direct Corporate Banking</div>
                             </div>
                           </div>
                           <span style={{ fontSize: 11, fontWeight: 800, color: '#047857', backgroundColor: '#D1FAE5', padding: '4px 10px', borderRadius: 6 }}>
@@ -1204,15 +1193,15 @@ export default function LandingPage() {
 
                 </div>
 
-                {/* Stage Footer Progress */}
+                {/* Stage Footer Status */}
                 <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
-                  <span style={{ color: '#64748B' }}>
-                    {currentPhase === 0 && 'Phase 1 of 3: Roster Ingestion'}
-                    {currentPhase === 1 && 'Phase 2 of 3: Computation & Tax'}
-                    {currentPhase === 2 && 'Phase 3 of 3: Bank Disbursal'}
+                  <span style={{ color: '#64748B', fontWeight: 600 }}>
+                    {currentPhase === 0 && 'Active Stage: Universal Roster Ingestion & Validation'}
+                    {currentPhase === 1 && 'Active Stage: Real-Time Statutory Computation & Tax Optimization'}
+                    {currentPhase === 2 && 'Active Stage: Direct Banking Batch Disbursal & Compliance Filing'}
                   </span>
-                  <span style={{ fontWeight: 800, color: '#10B981' }}>
-                    {Math.round(stageProgress * 100)}% Through Workflow
+                  <span style={{ fontWeight: 800, color: '#10B981', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    ✓ 100% Automated
                   </span>
                 </div>
 
@@ -1221,6 +1210,198 @@ export default function LandingPage() {
             </div>
 
           </div>
+      </section>
+
+
+      {/* ── ENTERPRISE DATA SECURITY & 100% CONFIDENTIALITY GUARANTEE ─ */}
+      <section
+        id="security"
+        style={{
+          padding: '96px 24px',
+          backgroundColor: '#0F172A',
+          color: '#FFFFFF',
+          position: 'relative',
+          overflow: 'hidden',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+        }}
+      >
+        {/* Ambient Glow */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 800,
+            height: 380,
+            background: 'radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, rgba(15, 23, 42, 0) 70%)',
+            pointerEvents: 'none',
+          }}
+        />
+
+        <div className="scroll-animate" style={{ maxWidth: 1240, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          
+          <div style={{ textAlign: 'center', maxWidth: 840, margin: '0 auto 64px auto' }}>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                fontSize: 12,
+                fontWeight: 800,
+                color: '#10B981',
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                marginBottom: 16,
+                padding: '4px 14px',
+                borderRadius: 9999,
+                backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+              }}
+            >
+              <Lock size={14} />
+              100% CLIENT CONFIDENTIALITY & DATA SECURITY GUARANTEE
+            </div>
+
+            <h2
+              style={{
+                fontSize: 'clamp(30px, 4.2vw, 50px)',
+                fontWeight: 900,
+                letterSpacing: '-0.03em',
+                lineHeight: 1.14,
+                color: '#FFFFFF',
+                marginBottom: 20,
+              }}
+            >
+              Your Compensation & Payroll Data is{' '}
+              <span style={{ color: '#10B981', textDecoration: 'underline', textUnderlineOffset: 6 }}>
+                100% Strictly Confidential.
+              </span>
+            </h2>
+
+            <p style={{ fontSize: 16.5, color: '#94A3B8', lineHeight: 1.6, fontWeight: 500 }}>
+              Payroll, CTC structures, employee bank accounts, and statutory tax filings are the single most sensitive dataset in any enterprise. 
+              NH Associates and Ploy.pe operate under legally binding non-disclosure covenants and statutory confidentiality ethics.
+            </p>
+          </div>
+
+          {/* 4 Pillars of Confidentiality */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))',
+              gap: 24,
+              marginBottom: 48,
+            }}
+          >
+            {/* Pillar 1 */}
+            <div
+              style={{
+                backgroundColor: '#1E293B',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: 14,
+                padding: '28px 24px',
+                borderTop: '3px solid #10B981',
+              }}
+            >
+              <div style={{ width: 42, height: 42, borderRadius: 10, backgroundColor: 'rgba(16, 185, 129, 0.12)', color: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
+                <ShieldCheck size={22} />
+              </div>
+              <h3 style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF', marginBottom: 10 }}>
+                Strict Non-Disclosure Covenants
+              </h3>
+              <p style={{ fontSize: 13.5, color: '#94A3B8', lineHeight: 1.6 }}>
+                Every client relationship is governed by institutional non-disclosure agreements and the professional confidentiality code of Chartered Accountants. Your organizational data belongs solely to you and is never shared, marketed, or monetized.
+              </p>
+            </div>
+
+            {/* Pillar 2 */}
+            <div
+              style={{
+                backgroundColor: '#1E293B',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: 14,
+                padding: '28px 24px',
+                borderTop: '3px solid #3B82F6',
+              }}
+            >
+              <div style={{ width: 42, height: 42, borderRadius: 10, backgroundColor: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
+                <Users size={22} />
+              </div>
+              <h3 style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF', marginBottom: 10 }}>
+                Zero Unauthorized Internal Access
+              </h3>
+              <p style={{ fontSize: 13.5, color: '#94A3B8', lineHeight: 1.6 }}>
+                Granular role-based discretion ensures only designated authorized leadership can view compensation packages and executive payouts. Junior HR and department peers can never inspect compensation outside their purview.
+              </p>
+            </div>
+
+            {/* Pillar 3 */}
+            <div
+              style={{
+                backgroundColor: '#1E293B',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: 14,
+                padding: '28px 24px',
+                borderTop: '3px solid #F59E0B',
+              }}
+            >
+              <div style={{ width: 42, height: 42, borderRadius: 10, backgroundColor: 'rgba(245, 158, 11, 0.12)', color: '#F59E0B', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
+                <Lock size={22} />
+              </div>
+              <h3 style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF', marginBottom: 10 }}>
+                Isolated Vaults & Encryption
+              </h3>
+              <p style={{ fontSize: 13.5, color: '#94A3B8', lineHeight: 1.6 }}>
+                Employee PANs, Aadhaar numbers, bank account IFSC details, and salary ledgers are protected in isolated encrypted vaults with end-to-end encryption in transit and at rest.
+              </p>
+            </div>
+
+            {/* Pillar 4 */}
+            <div
+              style={{
+                backgroundColor: '#1E293B',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: 14,
+                padding: '28px 24px',
+                borderTop: '3px solid #10B981',
+              }}
+            >
+              <div style={{ width: 42, height: 42, borderRadius: 10, backgroundColor: 'rgba(16, 185, 129, 0.12)', color: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
+                <Clock size={22} />
+              </div>
+              <h3 style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF', marginBottom: 10 }}>
+                Immutable Audit Trails
+              </h3>
+              <p style={{ fontSize: 13.5, color: '#94A3B8', lineHeight: 1.6 }}>
+                Every data export, salary revision, payslip dispatch, and banking approval is permanently recorded with tamper-evident user timestamps for complete organizational accountability.
+              </p>
+            </div>
+          </div>
+
+          {/* Bottom Trust Assurance Badge */}
+          <div
+            style={{
+              padding: '20px 28px',
+              borderRadius: 12,
+              backgroundColor: 'rgba(255, 255, 255, 0.04)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 16,
+              fontSize: 13,
+              color: '#CBD5E1',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <CheckCircle2 size={18} color="#10B981" />
+              <span>Full compliance with the Digital Personal Data Protection (DPDP) Act and Indian Information Technology standards.</span>
+            </div>
+            <span style={{ fontWeight: 800, color: '#10B981' }}>100% Confidentiality Guaranteed</span>
+          </div>
+
         </div>
       </section>
 
@@ -1281,7 +1462,7 @@ export default function LandingPage() {
                 Bank Gateway Compatibility
               </div>
               <p style={{ fontSize: 13, color: '#6EE7B7', marginTop: 6, lineHeight: 1.5 }}>
-                Instant salary disbursement file generation for HDFC, ICICI, SBI, Axis, and Kotak.
+                Instant salary disbursement file generation for all major scheduled commercial banks.
               </p>
             </div>
 
