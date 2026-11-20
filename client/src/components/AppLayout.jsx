@@ -1,3 +1,4 @@
+import { useInactivityLogout } from '../hooks/useInactivityLogout';
 import { useState } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -23,6 +24,9 @@ export default function AppLayout() {
   const location = useLocation();
 
   const [showChangePassModal, setShowChangePassModal] = useState(false);
+
+  // Auto-logout after 30 minutes of inactivity
+  useInactivityLogout(logout, navigate);
 
   async function handleLogout() {
     await logout();
