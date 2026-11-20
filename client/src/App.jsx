@@ -1,3 +1,4 @@
+import LandingPage from './pages/LandingPage';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import AppLayout from './components/AppLayout';
@@ -34,6 +35,7 @@ export default function App() {
 
   return (
     <Routes>
+      <Route path="/" element={<LandingPage />} />
       <Route
         path="/login"
         element={user ? <Navigate to="/" replace /> : <LoginPage />}
@@ -46,7 +48,7 @@ export default function App() {
           </PrivateRoute>
         }
       >
-        <Route index element={<DashboardPage />} />
+        <Route path="dashboard" element={<DashboardPage />} />
         <Route path="clients" element={<ClientsPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="admin" element={<AdminPage />} />
