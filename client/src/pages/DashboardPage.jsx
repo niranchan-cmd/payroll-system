@@ -84,13 +84,13 @@ export default function DashboardPage() {
               style={{
                 fontSize: 11,
                 fontWeight: 700,
-                letterSpacing: '0.05em',
+                letterSpacing: '0.04em',
                 textTransform: 'uppercase',
-                padding: '3px 9px',
-                borderRadius: 6,
-                backgroundColor: 'rgba(34, 197, 94, 0.12)',
-                color: '#22c55e',
-                border: '1px solid rgba(34, 197, 94, 0.25)',
+                padding: '4px 10px',
+                borderRadius: 9999,
+                backgroundColor: '#E6F4EA',
+                color: '#023326',
+                border: '1px solid #BBF7D0',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
@@ -101,7 +101,7 @@ export default function DashboardPage() {
                   width: 6,
                   height: 6,
                   borderRadius: '50%',
-                  backgroundColor: '#22c55e',
+                  backgroundColor: '#10B981',
                 }}
               />
               November 2026 Processing Window Active
@@ -159,10 +159,10 @@ export default function DashboardPage() {
               fontSize: 13,
               fontWeight: 800,
               cursor: 'pointer',
-              border: '1px solid transparent',
-              backgroundColor: 'var(--text-primary)',
-              color: 'var(--bg-primary)',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+              border: '1px solid #023326',
+              backgroundColor: '#023326',
+              color: '#FFFFFF',
+              boxShadow: '0 4px 12px rgba(2, 51, 38, 0.2)',
             }}
           >
             <Plus size={16} />
