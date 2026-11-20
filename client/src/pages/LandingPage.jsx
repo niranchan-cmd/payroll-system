@@ -7,7 +7,7 @@ import {
   CheckCircle2, ArrowRight, ShieldCheck, Zap, TrendingUp, 
   Users, Building2, FileSpreadsheet, Lock, Clock, Check,
   ChevronRight, PhoneCall, Sparkles, Send, ShieldAlert, Cpu,
-  Laptop, Briefcase
+  Laptop, Briefcase, Menu, X
 } from 'lucide-react';
 
 export default function LandingPage() {
@@ -20,6 +20,7 @@ export default function LandingPage() {
   const [statsAnimated, setStatsAnimated] = useState(false);
   const [headcount, setHeadcount] = useState(100);
   const [showModal, setShowModal] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -220,8 +221,8 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Nav Links (Clean, No-Wrap, Well-Aligned) */}
-          <nav style={{ display: 'flex', alignItems: 'center', gap: 20, fontSize: 13, fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>
+          {/* Nav Links (Clean, No-Wrap, Well-Aligned - Hidden on Mobile/Tablet) */}
+          <nav className="landing-desktop-nav" style={{ display: 'flex', alignItems: 'center', gap: 20, fontSize: 13, fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>
             <a href="#usp" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.15s' }}>Our Models</a>
             <a href="#engine" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.15s' }}>Automation</a>
             <a href="#security" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.15s' }}>Confidentiality</a>
@@ -230,8 +231,8 @@ export default function LandingPage() {
             <a href="#contact" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.15s' }}>Contact</a>
           </nav>
 
-          {/* Action CTAs */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          {/* Action CTAs (Desktop Only) */}
+          <div className="landing-desktop-nav" style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
             {user ? (
               <button
                 onClick={() => navigate('/dashboard')}
@@ -239,9 +240,10 @@ export default function LandingPage() {
                   backgroundColor: '#023326',
                   color: '#FFFFFF',
                   borderRadius: 9999,
-                  fontSize: 13.5,
+                  fontSize: 13,
                   fontWeight: 800,
-                  padding: '8px 14px', fontSize: 13, whiteSpace: 'nowrap',
+                  padding: '8px 14px',
+                  whiteSpace: 'nowrap',
                   border: '1px solid #10B981',
                   cursor: 'pointer',
                   display: 'flex',
@@ -293,8 +295,170 @@ export default function LandingPage() {
               Request Callback
             </button>
           </div>
+
+          {/* Mobile & Tablet Hamburger Toggle */}
+          <button
+            className="landing-mobile-menu-btn"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            style={{
+              display: 'none',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 42,
+              height: 42,
+              borderRadius: 10,
+              border: '1px solid #CBD5E1',
+              backgroundColor: '#FFFFFF',
+              color: '#0F172A',
+              cursor: 'pointer',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+            }}
+            aria-label="Toggle navigation drawer"
+          >
+            {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
         </div>
       </header>
+
+      {/* ── Mobile Slide-down Navigation Drawer ───────────────────── */}
+      {mobileMenuOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 76,
+            left: 0,
+            right: 0,
+            backgroundColor: 'rgba(255, 255, 255, 0.98)',
+            backdropFilter: 'blur(16px)',
+            borderBottom: '1px solid #E2E8F0',
+            padding: '24px 20px',
+            zIndex: 99,
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.12)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 14,
+            maxHeight: 'calc(100vh - 76px)',
+            overflowY: 'auto',
+          }}
+        >
+          <a
+            href="#usp"
+            onClick={() => setMobileMenuOpen(false)}
+            style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', textDecoration: 'none', padding: '10px 0', borderBottom: '1px solid #F1F5F9' }}
+          >
+            Our Models (Software vs Managed)
+          </a>
+          <a
+            href="#engine"
+            onClick={() => setMobileMenuOpen(false)}
+            style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', textDecoration: 'none', padding: '10px 0', borderBottom: '1px solid #F1F5F9' }}
+          >
+            Automation Engine (3 Phases)
+          </a>
+          <a
+            href="#security"
+            onClick={() => setMobileMenuOpen(false)}
+            style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', textDecoration: 'none', padding: '10px 0', borderBottom: '1px solid #F1F5F9' }}
+          >
+            100% Confidentiality & Data Security
+          </a>
+          <a
+            href="#stats"
+            onClick={() => setMobileMenuOpen(false)}
+            style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', textDecoration: 'none', padding: '10px 0', borderBottom: '1px solid #F1F5F9' }}
+          >
+            Compliance & Audit Metrics
+          </a>
+          <a
+            href="#calculator"
+            onClick={() => setMobileMenuOpen(false)}
+            style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', textDecoration: 'none', padding: '10px 0', borderBottom: '1px solid #F1F5F9' }}
+          >
+            Capacity & ROI Estimator
+          </a>
+          <a
+            href="#contact"
+            onClick={() => setMobileMenuOpen(false)}
+            style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', textDecoration: 'none', padding: '10px 0', borderBottom: '1px solid #F1F5F9' }}
+          >
+            Contact & Consultation
+          </a>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
+            {user ? (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  navigate('/dashboard');
+                }}
+                style={{
+                  width: '100%',
+                  padding: '13px',
+                  borderRadius: 10,
+                  backgroundColor: '#023326',
+                  color: '#FFFFFF',
+                  fontSize: 14.5,
+                  fontWeight: 800,
+                  border: '1px solid #10B981',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                }}
+              >
+                <span>Go to Dashboard ({user.name?.split(' ')[0] || 'User'})</span>
+                <ArrowRight size={16} color="#10B981" />
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  navigate('/login');
+                }}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: 10,
+                  backgroundColor: '#F8FAFC',
+                  color: '#0F172A',
+                  fontSize: 14.5,
+                  fontWeight: 700,
+                  border: '1px solid #CBD5E1',
+                  cursor: 'pointer',
+                }}
+              >
+                Client Login
+              </button>
+            )}
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setShowModal(true);
+              }}
+              style={{
+                width: '100%',
+                padding: '13px',
+                borderRadius: 10,
+                backgroundColor: '#023326',
+                color: '#FFFFFF',
+                fontSize: 14.5,
+                fontWeight: 800,
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                boxShadow: '0 4px 14px rgba(2, 51, 38, 0.25)',
+              }}
+            >
+              <PhoneCall size={15} color="#10B981" />
+              Request Callback
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── HERO SECTION: 3D Dimensional Parallax ──────────────────── */}
       <section style={{ position: 'relative', paddingTop: 64, paddingBottom: 96, overflow: 'hidden' }}>
@@ -379,8 +543,8 @@ export default function LandingPage() {
 
             {/* Primary CTA Buttons */}
             <div
-              className="scroll-animate is-visible scroll-animate-delay-2"
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 56 }}
+              className="scroll-animate is-visible scroll-animate-delay-2 hero-cta-group"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 56, flexWrap: 'wrap' }}
             >
               <button
                 onClick={() => {
@@ -398,6 +562,7 @@ export default function LandingPage() {
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'center',
                   gap: 10,
                   boxShadow: '0 10px 25px rgba(2, 51, 38, 0.25)',
                   transition: 'all 0.15s ease',
@@ -423,6 +588,7 @@ export default function LandingPage() {
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'center',
                   gap: 8,
                 }}
               >
@@ -431,8 +597,9 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Floating Live Parallax Pills */}
+          {/* Floating Live Parallax Pills (Hidden on Mobile & Tablet to prevent overlap) */}
           <div
+            className="hero-floating-pill"
             style={{
               position: 'absolute',
               top: 260,
@@ -455,6 +622,7 @@ export default function LandingPage() {
           </div>
 
           <div
+            className="hero-floating-pill"
             style={{
               position: 'absolute',
               top: 320,
@@ -857,7 +1025,7 @@ export default function LandingPage() {
       >
         <div style={{ maxWidth: 1240, margin: '0 auto' }}>
             
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 440px) 1fr', gap: 60, alignItems: 'center' }}>
+            <div className="engine-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 440px) 1fr', gap: 60, alignItems: 'center' }}>
               
               {/* Left Column: Timeline Navigation */}
               <div>
@@ -1289,7 +1457,7 @@ export default function LandingPage() {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
               gap: 24,
               marginBottom: 48,
             }}

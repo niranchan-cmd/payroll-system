@@ -67,6 +67,7 @@ export default function DashboardPage() {
       
       {/* ── Top Header Toolbar ────────────────────────────────────────── */}
       <div
+        className="dashboard-header-toolbar"
         style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -79,7 +80,7 @@ export default function DashboardPage() {
         }}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
             <div
               style={{
                 fontSize: 11,
@@ -114,7 +115,7 @@ export default function DashboardPage() {
           <h1
             style={{
               fontFamily: 'var(--font-heading)',
-              fontSize: 26,
+              fontSize: 'clamp(20px, 4vw, 26px)',
               fontWeight: 900,
               letterSpacing: '-0.03em',
               color: 'var(--text-primary)',
@@ -127,13 +128,14 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="dashboard-btn-group" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <button
             onClick={() => navigate('/reports')}
             className="btn btn-outline"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: 8,
               padding: '9px 16px',
               borderRadius: 8,
@@ -153,6 +155,7 @@ export default function DashboardPage() {
             style={{
               display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: 8,
               padding: '9px 18px',
               borderRadius: 8,
@@ -175,7 +178,7 @@ export default function DashboardPage() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
           gap: 16,
           marginBottom: 28,
         }}
@@ -331,6 +334,7 @@ export default function DashboardPage() {
       >
         {/* Table Header Bar with Real-Time Search & Status Filter Tabs */}
         <div
+          className="dashboard-table-controls"
           style={{
             padding: '16px 20px',
             borderBottom: '1px solid var(--border-subtle)',
@@ -483,7 +487,8 @@ export default function DashboardPage() {
             )}
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%' }}>
+            <table style={{ width: '100%', minWidth: 680, borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ backgroundColor: 'var(--bg-elevated)', borderBottom: '1px solid var(--border-subtle)' }}>
                 <th style={{ padding: '11px 18px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', width: '34%' }}>
@@ -668,6 +673,7 @@ export default function DashboardPage() {
               })}
             </tbody>
           </table>
+          </div>
         )}
 
         {/* Table Footer */}

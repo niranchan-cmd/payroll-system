@@ -1073,13 +1073,136 @@ tbody tr:hover { background: var(--bg-hover); }
 }
 
 /* ── Responsive ───────────────────────────────────────── */
+.topbar-mobile-toggle {
+  display: none;
+}
+
+.mobile-close-sidebar-btn {
+  display: none !important;
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
 @media (max-width: 768px) {
-  .sidebar { transform: translateX(-100%); }
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 1000;
+    width: 280px;
+    max-width: 85vw;
+    box-shadow: none;
+  }
+  .sidebar.open {
+    transform: translateX(0) !important;
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.5) !important;
+  }
+  .sidebar-backdrop {
+    display: block !important;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    z-index: 999;
+    opacity: 1;
+    animation: fadeInBackdrop 0.2s ease forwards;
+  }
+  @keyframes fadeInBackdrop {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .topbar-mobile-toggle {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    width: 38px;
+    height: 38px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .mobile-close-sidebar-btn {
+    display: inline-flex !important;
+  }
   .main-content { margin-left: 0; }
+  .topbar { padding: 0 var(--sp-4); gap: var(--sp-2); }
   .form-grid, .form-grid-3 { grid-template-columns: 1fr; }
   .page-header { flex-direction: column; }
-  .page-content { padding: var(--sp-5); }
+  .page-content { padding: var(--sp-4); }
   .profile-grid { grid-template-columns: 1fr; }
+  
+  /* Prevent iOS Safari form input auto-zoom */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Landing Page Mobile & Tablet Utilities */
+@media (max-width: 1024px) {
+  .landing-desktop-nav {
+    display: none !important;
+  }
+  .landing-mobile-menu-btn {
+    display: flex !important;
+  }
+  .hero-floating-pill {
+    display: none !important;
+  }
+  .engine-grid {
+    grid-template-columns: 1fr !important;
+    gap: 32px !important;
+  }
+}
+
+@media (min-width: 1025px) {
+  .landing-desktop-nav {
+    display: flex !important;
+  }
+  .landing-mobile-menu-btn {
+    display: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-cta-group {
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 340px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+  .hero-cta-group > button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+  .dashboard-header-toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .dashboard-btn-group {
+    width: 100% !important;
+    justify-content: stretch !important;
+  }
+  .dashboard-btn-group > button {
+    flex: 1 !important;
+    justify-content: center !important;
+  }
+  .dashboard-table-controls {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .dashboard-table-controls > div {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
 }
 
 /* ── PAYSLIP COMPONENT STYLING ─────────────────────────────── */

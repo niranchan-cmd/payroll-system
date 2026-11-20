@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useClient } from '../context/ClientContext';
 import {
   LayoutDashboard, Building2, Users, LogOut, ChevronRight, Shield,
-  X, Settings, Play, FileUp, FileSpreadsheet, Lock
+  X, Settings, Play, FileUp, FileSpreadsheet, Lock, Menu
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ThemeSelector from './ThemeSelector';
@@ -24,6 +24,7 @@ export default function AppLayout() {
   const location = useLocation();
 
   const [showChangePassModal, setShowChangePassModal] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   // Auto-logout after 30 minutes of inactivity
   useInactivityLogout(logout, navigate);
@@ -34,16 +35,44 @@ export default function AppLayout() {
     navigate('/login');
   }
 
+  function handleNavClick() {
+    setMobileSidebarOpen(false);
+  }
+
   return (
     <div className="app-shell">
+      {/* ── Mobile Backdrop Overlay ────────────────────────── */}
+      {mobileSidebarOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* ── Sidebar ──────────────────────────────────────── */}
-      <aside className="sidebar">
-        <div className="sidebar-logo">
-          <div className="sidebar-logo-icon" style={{ backgroundColor: "#023326", color: "#10B981", fontWeight: 900 }}>P</div>
-          <div className="sidebar-logo-text">
-            <span className="sidebar-logo-title">Ploy.pe</span>
-            <span className="sidebar-logo-sub">by NH Associates</span>
+      <aside className={`sidebar ${mobileSidebarOpen ? 'open' : ''}`}>
+        <div className="sidebar-logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="sidebar-logo-icon" style={{ backgroundColor: "#023326", color: "#10B981", fontWeight: 900 }}>P</div>
+            <div className="sidebar-logo-text">
+              <span className="sidebar-logo-title">Ploy.pe</span>
+              <span className="sidebar-logo-sub">by NH Associates</span>
+            </div>
           </div>
+          <button
+            className="mobile-close-sidebar-btn"
+            onClick={() => setMobileSidebarOpen(false)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              padding: 4,
+            }}
+            aria-label="Close menu"
+          >
+            <X size={20} />
+          </button>
         </div>
 
         <nav className="sidebar-nav">
@@ -52,6 +81,7 @@ export default function AppLayout() {
           {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
             <NavLink
               to="/admin"
+              onClick={handleNavClick}
               className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
             >
               <Shield className="nav-icon" size={18} />
@@ -64,6 +94,7 @@ export default function AppLayout() {
               key={to}
               to={to}
               end={exact}
+              onClick={handleNavClick}
               className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
             >
               <Icon className="nav-icon" size={18} />
@@ -78,6 +109,7 @@ export default function AppLayout() {
               </span>
               <NavLink
                 to={`/clients/${selectedClient.id}`}
+                onClick={handleNavClick}
                 className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
               >
                 <Settings className="nav-icon" size={18} />
@@ -85,6 +117,7 @@ export default function AppLayout() {
               </NavLink>
               <NavLink
                 to={`/clients/${selectedClient.id}/structure`}
+                onClick={handleNavClick}
                 className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
               >
                 <ChevronRight className="nav-icon" size={18} />
@@ -92,6 +125,7 @@ export default function AppLayout() {
               </NavLink>
               <NavLink
                 to={`/clients/${selectedClient.id}/employees`}
+                onClick={handleNavClick}
                 className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
               >
                 <Users className="nav-icon" size={18} />
@@ -99,6 +133,7 @@ export default function AppLayout() {
               </NavLink>
               <NavLink
                 to={`/clients/${selectedClient.id}/payroll`}
+                onClick={handleNavClick}
                 className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
               >
                 <Play className="nav-icon" size={18} />
@@ -106,6 +141,7 @@ export default function AppLayout() {
               </NavLink>
               <NavLink
                 to={`/clients/${selectedClient.id}/employees/import`}
+                onClick={handleNavClick}
                 className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
               >
                 <FileUp className="nav-icon" size={18} />
@@ -173,23 +209,37 @@ export default function AppLayout() {
       {/* ── Main ─────────────────────────────────────────── */}
       <div className="main-content">
         <header className="topbar">
+          <button
+            className="topbar-mobile-toggle"
+            onClick={() => setMobileSidebarOpen((prev) => !prev)}
+            aria-label="Toggle navigation drawer"
+          >
+            <Menu size={20} />
+          </button>
+
           <div className="topbar-breadcrumb">
-            {selectedClient && (
+            {selectedClient ? (
               <>
                 <span style={{ color: 'var(--text-muted)' }}>Client:</span>
                 <span style={{ color: 'var(--accent-light)', fontWeight: 600 }}>
                   {selectedClient.name}
                 </span>
               </>
+            ) : (
+              <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-primary)' }}>
+                Command Center
+              </span>
             )}
           </div>
 
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
             <ThemeSelector />
             {selectedClient && (
               <div className="client-banner">
                 <div className="client-banner-dot" />
-                <span>{selectedClient.name}</span>
+                <span style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {selectedClient.name}
+                </span>
                 <button
                   style={{
                     background: 'none',
