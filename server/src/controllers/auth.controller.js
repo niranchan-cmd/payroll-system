@@ -1,3 +1,34 @@
+// ─── ACCOUNT LOCKOUT (In-Memory) ─────────────────────────────────────────────
+const loginAttempts = new Map(); // email → { count, lockedUntil }
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_MS = 10 * 60 * 1000; // 10 minutes
+
+function checkLockout(email) {
+  const record = loginAttempts.get(email);
+  if (!record) return null;
+  if (record.lockedUntil && Date.now() < record.lockedUntil) {
+    const remainingMs = record.lockedUntil - Date.now();
+    const remainingMinutes = Math.ceil(remainingMs / 60000);
+    return { locked: true, remainingMinutes, remainingMs };
+  }
+  return null;
+}
+
+function recordFailedAttempt(email) {
+  const record = loginAttempts.get(email) || { count: 0, lockedUntil: null };
+  record.count += 1;
+  if (record.count >= MAX_ATTEMPTS) {
+    record.lockedUntil = Date.now() + LOCKOUT_MS;
+  }
+  loginAttempts.set(email, record);
+  return MAX_ATTEMPTS - record.count;
+}
+
+function clearAttempts(email) {
+  loginAttempts.delete(email);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 const bcrypt = require('bcryptjs');
 const prisma = require('../utils/prisma');
 const { signAccessToken, signRefreshToken, verifyRefreshToken } = require('../utils/jwt.utils');
@@ -15,15 +46,57 @@ async function login(req, res) {
     return errorResponse(res, 'Email and password are required.', 400);
   }
 
-  const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+  const normalizedEmail = email.toLowerCase();
+
+  // Check lockout
+  const lockout = checkLockout(normalizedEmail);
+  if (lockout) {
+    return res.status(429).json({
+      success: false,
+      message: `Account locked. Try again in ${lockout.remainingMinutes} minute${lockout.remainingMinutes > 1 ? 's' : ''}.`,
+      remainingMinutes: lockout.remainingMinutes,
+      locked: true,
+    });
+  }
+
+  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
   if (!user || !user.is_active) {
-    return errorResponse(res, 'Invalid credentials.', 401);
+    const attemptsRemaining = recordFailedAttempt(normalizedEmail);
+    if (attemptsRemaining <= 0) {
+      return res.status(429).json({
+        success: false,
+        message: 'Account locked for 10 minutes due to too many failed attempts.',
+        locked: true,
+        remainingMinutes: 10,
+      });
+    }
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid credentials.',
+      attemptsRemaining,
+    });
   }
 
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) {
-    return errorResponse(res, 'Invalid credentials.', 401);
+    const attemptsRemaining = recordFailedAttempt(normalizedEmail);
+    if (attemptsRemaining <= 0) {
+      return res.status(429).json({
+        success: false,
+        message: 'Account locked for 10 minutes due to too many failed attempts.',
+        locked: true,
+        remainingMinutes: 10,
+      });
+    }
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid credentials.',
+      attemptsRemaining,
+    });
   }
+
+  // Clear attempts on successful login
+  clearAttempts(normalizedEmail);
 
   const payload = { id: user.id, email: user.email, role: user.role };
   const accessToken = signAccessToken(payload);
