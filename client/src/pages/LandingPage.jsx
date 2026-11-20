@@ -1,41 +1,136 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import { 
+  CheckCircle2, ArrowRight, ShieldCheck, Zap, TrendingUp, 
+  Users, Building2, FileSpreadsheet, Lock, Clock, Check,
+  ChevronRight, PhoneCall, Sparkles, Send, ShieldAlert, Cpu
+} from 'lucide-react';
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const [scrollY, setScrollY] = useState(0);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [stageProgress, setStageProgress] = useState(0);
+  const [manualPhase, setManualPhase] = useState(null);
+  const [statsAnimated, setStatsAnimated] = useState(false);
+  const [headcount, setHeadcount] = useState(100);
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  const stageRef = useRef(null);
+  const statsRef = useRef(null);
 
   const [form, setForm] = useState({
     name: '',
     email: '',
     phone: '',
     company_name: '',
-    team_size: '21-100',
+    team_size: '51-200',
     notes: '',
   });
 
+  // ── Scroll Tracking & Sticky Stage Calculations ───────────────────────────
   useEffect(() => {
+    let ticking = false;
+
     function handleScroll() {
-      const winScroll = document.documentElement.scrollTop || document.body.scrollTop;
-      const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-      const scrolled = height > 0 ? (winScroll / height) * 100 : 0;
-      setScrollProgress(scrolled);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentY = window.pageYOffset || document.documentElement.scrollTop;
+          setScrollY(currentY);
+
+          // Full Page Progress
+          const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+          const totalProgress = docHeight > 0 ? (currentY / docHeight) * 100 : 0;
+          setScrollProgress(Math.min(100, Math.max(0, totalProgress)));
+
+          // Pinned 3-Phase Stage Progress
+          if (stageRef.current) {
+            const rect = stageRef.current.getBoundingClientRect();
+            const stageHeight = rect.height - window.innerHeight;
+            if (stageHeight > 0) {
+              const currentOffset = -rect.top;
+              const progress = Math.max(0, Math.min(1, currentOffset / stageHeight));
+              setStageProgress(progress);
+            }
+          }
+
+          ticking = false;
+        });
+        ticking = true;
+      }
     }
+
     window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // ── IntersectionObserver for Smooth In-View Element Reveals ───────────────
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            if (entry.target.id === 'stats-section') {
+              setStatsAnimated(true);
+            }
+          }
+        });
+      },
+      { threshold: 0.12, rootMargin: '0px 0px -40px 0px' }
+    );
+
+    const elements = document.querySelectorAll('.scroll-animate');
+    elements.forEach((el) => observer.observe(el));
+
+    return () => observer.disconnect();
+  }, []);
+
+  // Compute active stage phase (0, 1, or 2)
+  const currentPhase = manualPhase !== null 
+    ? manualPhase 
+    : stageProgress < 0.35 
+      ? 0 
+      : stageProgress < 0.70 
+        ? 1 
+        : 2;
+
+  // ── Animated Stats Counter Hook ───────────────────────────────────────────
+  const [accuracyCount, setAccuracyCount] = useState(0);
+  const [timeCount, setTimeCount] = useState(15);
+  useEffect(() => {
+    if (!statsAnimated) return;
+    let start = 0;
+    const duration = 1200;
+    const startTime = performance.now();
+
+    function updateCounter(now) {
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / duration);
+      // easeOutCubic
+      const ease = 1 - Math.pow(1 - progress, 3);
+      setAccuracyCount(Number((ease * 99.9).toFixed(1)));
+      setTimeCount(Math.max(2, Math.round(15 - ease * 13)));
+
+      if (progress < 1) {
+        requestAnimationFrame(updateCounter);
+      }
+    }
+    requestAnimationFrame(updateCounter);
+  }, [statsAnimated]);
+
+  // Lead Submission
   async function handleSubmit(e) {
     e.preventDefault();
     setSubmitting(true);
     try {
       await api.post('/leads', form);
-      toast.success('Inquiry received! We will call you shortly.');
+      toast.success('Inquiry received! We will call you within 15 minutes.');
       setSubmitted(true);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to submit. Please check your details.');
@@ -44,9 +139,22 @@ export default function LandingPage() {
     }
   }
 
+  // Headcount impact calculations
+  const totalMonthlyPayroll = headcount * 65000;
+  const epfEsicHandled = Math.round(totalMonthlyPayroll * 0.1275);
+  const hoursSaved = Math.round(headcount * 0.4);
+
+  // Parallax calculations
+  const heroTilt = Math.max(0, 8 - scrollY * 0.02);
+  const heroScale = Math.min(1.02, 0.96 + scrollY * 0.00015);
+  const heroTextParallax = Math.min(50, scrollY * 0.12);
+  const heroBadgeLeft = Math.min(40, scrollY * 0.22);
+  const heroBadgeRight = Math.min(50, scrollY * 0.28);
+
   return (
-    <div style={{ backgroundColor: '#FFFFFF', color: '#0F172A', minHeight: '100vh', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-      {/* Top Scroll Progress Indicator */}
+    <div style={{ backgroundColor: '#FFFFFF', color: '#0F172A', minHeight: '100vh', fontFamily: "'Plus Jakarta Sans', sans-serif", overflowX: 'hidden' }}>
+      
+      {/* ── Top Continuous Scroll Progress Bar ─────────────────────── */}
       <div
         style={{
           position: 'fixed',
@@ -55,28 +163,33 @@ export default function LandingPage() {
           height: 3,
           backgroundColor: '#10B981',
           width: `${scrollProgress}%`,
-          zIndex: 100,
-          transition: 'width 0.1s linear',
+          zIndex: 9999,
+          boxShadow: '0 0 10px rgba(16, 185, 129, 0.7)',
+          transition: 'width 0.08s ease-out',
         }}
       />
 
-      {/* ── Navigation ──────────────────────────────────────────────── */}
+      {/* ── Sticky Top Navigation ──────────────────────────────────── */}
       <header
         style={{
           position: 'sticky',
           top: 0,
-          zIndex: 50,
-          backgroundColor: 'rgba(255, 255, 255, 0.92)',
-          backdropFilter: 'blur(10px)',
-          borderBottom: '1px solid #F1F5F9',
+          zIndex: 100,
+          backgroundColor: scrollY > 20 ? 'rgba(255, 255, 255, 0.94)' : 'rgba(255, 255, 255, 0.85)',
+          backdropFilter: 'blur(12px)',
+          borderBottom: scrollY > 20 ? '1px solid #E2E8F0' : '1px solid transparent',
+          transition: 'all 0.25s ease',
+          height: 76,
         }}
       >
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', height: 80, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto', padding: '0 24px', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          
+          {/* Brand Logo */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div
               style={{
-                width: 36,
-                height: 36,
+                width: 38,
+                height: 38,
                 borderRadius: 10,
                 backgroundColor: '#023326',
                 display: 'flex',
@@ -84,28 +197,34 @@ export default function LandingPage() {
                 justifyContent: 'center',
                 color: '#10B981',
                 fontWeight: 900,
-                fontSize: 16,
+                fontSize: 18,
+                boxShadow: '0 4px 12px rgba(2, 51, 38, 0.2)',
               }}
             >
               P
             </div>
             <div>
-              <div style={{ fontSize: 19, fontWeight: 900, letterSpacing: '-0.02em', color: '#0F172A' }}>
+              <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.03em', color: '#0F172A', display: 'flex', alignItems: 'center', gap: 6 }}>
                 Ploy.pe
+                <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 6, backgroundColor: '#E6F4EA', color: '#023326', fontWeight: 800 }}>
+                  HR & PAYROLL
+                </span>
               </div>
-              <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <div style={{ fontSize: 10, color: '#64748B', fontWeight: 600, letterSpacing: '0.04em' }}>
                 by NH Associates
               </div>
             </div>
           </div>
 
-          <nav style={{ display: 'none', gap: 28, fontSize: 14, fontWeight: 600, color: '#475569' }} className="md-flex">
-            <a href="#why-us" style={{ color: 'inherit', textDecoration: 'none' }}>Why Ploy.pe</a>
-            <a href="#timeline" style={{ color: 'inherit', textDecoration: 'none' }}>Payroll Timeline</a>
-            <a href="#capabilities" style={{ color: 'inherit', textDecoration: 'none' }}>Capabilities</a>
-            <a href="#contact" style={{ color: 'inherit', textDecoration: 'none' }}>Contact</a>
+          {/* Nav Links */}
+          <nav style={{ display: 'flex', alignItems: 'center', gap: 32, fontSize: 13.5, fontWeight: 600, color: '#475569' }}>
+            <a href="#engine" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.15s' }}>Automated Engine</a>
+            <a href="#stats" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.15s' }}>Compliance Metrics</a>
+            <a href="#calculator" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.15s' }}>Impact Calculator</a>
+            <a href="#contact" style={{ color: 'inherit', textDecoration: 'none', transition: 'color 0.15s' }}>Contact</a>
           </nav>
 
+          {/* Action CTAs */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <button
               onClick={() => navigate('/login')}
@@ -119,7 +238,7 @@ export default function LandingPage() {
                 padding: '8px 14px',
               }}
             >
-              Sign In
+              Client Login
             </button>
             <button
               onClick={() => setShowModal(true)}
@@ -132,317 +251,1008 @@ export default function LandingPage() {
                 padding: '10px 20px',
                 border: 'none',
                 cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(2, 51, 38, 0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                boxShadow: '0 4px 14px rgba(2, 51, 38, 0.25)',
+                transition: 'transform 0.15s ease',
               }}
+              onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-1px)')}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
             >
-              Request a demo
+              <PhoneCall size={14} color="#10B981" />
+              Request Callback
             </button>
           </div>
         </div>
       </header>
 
-      {/* ── Hero Section (Fluid, No Boxes) ───────────────────────────── */}
-      <section style={{ position: 'relative', paddingTop: 80, paddingBottom: 100, textAlign: 'center', background: 'radial-gradient(circle 800px at 50% -100px, rgba(16, 185, 129, 0.08), transparent 70%)' }}>
-        <div style={{ maxWidth: 1000, margin: '0 auto', padding: '0 24px' }}>
+      {/* ── HERO SECTION: 3D Dimensional Parallax ──────────────────── */}
+      <section style={{ position: 'relative', paddingTop: 64, paddingBottom: 96, overflow: 'hidden' }}>
+        
+        {/* Ambient Subtle Glow */}
+        <div
+          style={{
+            position: 'absolute',
+            top: -120,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 800,
+            height: 480,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, rgba(255, 255, 255, 0) 70%)',
+            pointerEvents: 'none',
+            zIndex: 0,
+          }}
+        />
+
+        <div style={{ maxWidth: 1240, margin: '0 auto', padding: '0 24px', position: 'relative', zIndex: 1, textAlign: 'center' }}>
           
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 16px', borderRadius: 9999, backgroundColor: '#ECFDF5', color: '#065F46', fontSize: 12, fontWeight: 700, marginBottom: 28 }}>
-            <span>✨</span>
-            <span>Simplify HR, Empower Teams with Ploy.pe</span>
-          </div>
-
-          <h1 style={{ fontSize: 'clamp(36px, 6vw, 68px)', fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1.08, color: '#0F172A', marginBottom: 24 }}>
-            Next-Gen HR & Payroll Platform for Growing Teams
-          </h1>
-
-          <p style={{ fontSize: 18, color: '#475569', maxWidth: 640, margin: '0 auto 36px auto', lineHeight: 1.6 }}>
-            Streamline hiring, automate salary workflows, and empower your team with a complete HR and payroll system built for modern businesses.
-          </p>
-
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginBottom: 36 }}>
-            <button
-              onClick={() => setShowModal(true)}
+          {/* Hero Header Content (Parallax Floating) */}
+          <div style={{ transform: `translateY(${heroTextParallax}px)`, transition: 'transform 0.1s linear' }}>
+            
+            {/* Top Badge */}
+            <div
+              className="scroll-animate is-visible"
               style={{
-                backgroundColor: '#023326',
-                color: '#FFFFFF',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '6px 14px',
                 borderRadius: 9999,
-                fontSize: 15,
+                backgroundColor: '#F0FDF4',
+                border: '1px solid #BBF7D0',
+                color: '#065F46',
+                fontSize: 12.5,
                 fontWeight: 700,
-                padding: '14px 32px',
-                border: 'none',
-                cursor: 'pointer',
-                boxShadow: '0 8px 24px rgba(2, 51, 38, 0.25)',
+                marginBottom: 20,
               }}
             >
-              Request a demo
-            </button>
-          </div>
-
-          {/* Ratings */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20, fontSize: 13, color: '#64748B', marginBottom: 70 }}>
-            <div><strong style={{ color: '#F59E0B' }}>★★★★★ 4.7</strong> on G2.com</div>
-            <span>/</span>
-            <div><strong style={{ color: '#F59E0B' }}>★★★★★ 4.5</strong> on Capterra</div>
-          </div>
-
-          {/* Fluid Metrics - No Boxes */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 40, textAlign: 'left', borderTop: '1px solid #F1F5F9', paddingTop: 50 }}>
-            <div style={{ borderLeft: '3px solid #10B981', paddingLeft: 18 }}>
-              <div style={{ fontSize: 36, fontWeight: 900, color: '#0F172A', marginBottom: 4 }}>14 Days</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#1E293B', marginBottom: 4 }}>Accelerated Hiring</div>
-              <p style={{ fontSize: 12.5, color: '#64748B', margin: 0, lineHeight: 1.5 }}>
-                35% faster candidate pipelines from sourcing to offer letter generation.
-              </p>
+              <Sparkles size={14} color="#10B981" />
+              Next-Gen Multi-Client Payroll OS for Enterprises & CA Firms
             </div>
 
-            <div style={{ borderLeft: '3px solid #10B981', paddingLeft: 18 }}>
-              <div style={{ fontSize: 36, fontWeight: 900, color: '#0F172A', marginBottom: 4 }}>100% On-Time</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#1E293B', marginBottom: 4 }}>Payroll & Statutory Filing</div>
-              <p style={{ fontSize: 12.5, color: '#64748B', margin: 0, lineHeight: 1.5 }}>
-                Automated PF, ESIC, PT, and bank disbursals executed with zero manual calculation errors.
-              </p>
-            </div>
+            {/* Main Headline */}
+            <h1
+              className="scroll-animate is-visible"
+              style={{
+                fontSize: 'clamp(36px, 5.2vw, 68px)',
+                fontWeight: 900,
+                letterSpacing: '-0.04em',
+                lineHeight: 1.08,
+                color: '#0F172A',
+                maxWidth: 960,
+                margin: '0 auto 24px auto',
+              }}
+            >
+              Enterprise Payroll, CTC Architecture & Direct Disbursal on{' '}
+              <span style={{ color: '#023326', textDecoration: 'underline', textDecorationColor: '#10B981', textUnderlineOffset: 6 }}>
+                Autopilot.
+              </span>
+            </h1>
 
-            <div style={{ borderLeft: '3px solid #10B981', paddingLeft: 18 }}>
-              <div style={{ fontSize: 36, fontWeight: 900, color: '#0F172A', marginBottom: 4 }}>94.8%</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#1E293B', marginBottom: 4 }}>Workforce Retention</div>
-              <p style={{ fontSize: 12.5, color: '#64748B', margin: 0, lineHeight: 1.5 }}>
-                Empowered managers with transparent OKRs, 360 reviews, and career progression paths.
-              </p>
+            {/* Subheading */}
+            <p
+              className="scroll-animate is-visible scroll-animate-delay-1"
+              style={{
+                fontSize: 18,
+                color: '#475569',
+                maxWidth: 720,
+                margin: '0 auto 36px auto',
+                lineHeight: 1.6,
+                fontWeight: 500,
+              }}
+            >
+              Eliminate manual Excel sheets, compliance penalties, and banking friction. 
+              Ploy.pe calculates statutory deductions (PF, ESI, PT, TDS) for thousands of employees 
+              and executes bank payouts in minutes.
+            </p>
+
+            {/* Primary CTA Buttons */}
+            <div
+              className="scroll-animate is-visible scroll-animate-delay-2"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 56 }}
+            >
+              <button
+                onClick={() => {
+                  const target = document.getElementById('contact');
+                  target?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                style={{
+                  backgroundColor: '#023326',
+                  color: '#FFFFFF',
+                  borderRadius: 9999,
+                  fontSize: 15,
+                  fontWeight: 800,
+                  padding: '14px 28px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  boxShadow: '0 10px 25px rgba(2, 51, 38, 0.25)',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                Schedule Direct Walkthrough
+                <ArrowRight size={16} color="#10B981" />
+              </button>
+
+              <button
+                onClick={() => {
+                  const target = document.getElementById('engine');
+                  target?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  color: '#0F172A',
+                  borderRadius: 9999,
+                  fontSize: 15,
+                  fontWeight: 700,
+                  padding: '14px 24px',
+                  border: '1px solid #CBD5E1',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                See Scroll Interactive Demo ↓
+              </button>
+            </div>
+          </div>
+
+          {/* Floating Live Parallax Pills */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 260,
+              left: 40,
+              transform: `translateY(${heroBadgeLeft}px)`,
+              transition: 'transform 0.1s linear',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '10px 18px',
+              borderRadius: 9999,
+              backgroundColor: '#FFFFFF',
+              boxShadow: '0 12px 28px rgba(0, 0, 0, 0.08)',
+              border: '1px solid #E2E8F0',
+              zIndex: 3,
+            }}
+          >
+            <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#10B981' }} />
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#0F172A' }}>100% Statutory Compliant</span>
+          </div>
+
+          <div
+            style={{
+              position: 'absolute',
+              top: 320,
+              right: 40,
+              transform: `translateY(${heroBadgeRight}px)`,
+              transition: 'transform 0.1s linear',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '10px 18px',
+              borderRadius: 9999,
+              backgroundColor: '#FFFFFF',
+              boxShadow: '0 12px 28px rgba(0, 0, 0, 0.08)',
+              border: '1px solid #E2E8F0',
+              zIndex: 3,
+            }}
+          >
+            <ShieldCheck size={16} color="#10B981" />
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#0F172A' }}>ICICI / HDFC API Linked</span>
+          </div>
+
+          {/* 3D Dynamic Perspective Card (Straightens & Scales on Scroll) */}
+          <div
+            style={{
+              maxWidth: 1080,
+              margin: '0 auto',
+              perspective: 1200,
+            }}
+          >
+            <div
+              style={{
+                transform: `rotateX(${heroTilt}deg) scale(${heroScale})`,
+                transition: 'transform 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
+                borderRadius: 20,
+                border: '1px solid #E2E8F0',
+                backgroundColor: '#FFFFFF',
+                boxShadow: '0 25px 60px -15px rgba(15, 23, 42, 0.15), 0 0 0 1px rgba(15, 23, 42, 0.04)',
+                overflow: 'hidden',
+                textAlign: 'left',
+              }}
+            >
+              {/* Mock App Window Top Bar */}
+              <div
+                style={{
+                  height: 48,
+                  backgroundColor: '#F8FAFC',
+                  borderBottom: '1px solid #E2E8F0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '0 20px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 11, height: 11, borderRadius: '50%', backgroundColor: '#EF4444' }} />
+                  <div style={{ width: 11, height: 11, borderRadius: '50%', backgroundColor: '#F59E0B' }} />
+                  <div style={{ width: 11, height: 11, borderRadius: '50%', backgroundColor: '#10B981' }} />
+                  <span style={{ fontSize: 12, color: '#94A3B8', marginLeft: 12, fontWeight: 500 }}>
+                    app.ploy.pe/admin/payroll/run-november
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#059669', backgroundColor: '#D1FAE5', padding: '3px 8px', borderRadius: 6 }}>
+                    ● LIVE RUN ACTIVE
+                  </span>
+                </div>
+              </div>
+
+              {/* Mock App Body Content */}
+              <div style={{ padding: '32px 36px', backgroundColor: '#FFFFFF' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 20, marginBottom: 28 }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Client Entity: Apex Global Technologies Ltd.
+                    </div>
+                    <div style={{ fontSize: 24, fontWeight: 900, color: '#0F172A', marginTop: 4 }}>
+                      November 2026 Scheduled Disbursal
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    <div style={{ padding: '10px 18px', backgroundColor: '#F8FAFC', borderRadius: 10, border: '1px solid #E2E8F0' }}>
+                      <div style={{ fontSize: 11, color: '#64748B' }}>Total Headcount</div>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: '#0F172A' }}>428 Staff</div>
+                    </div>
+                    <div style={{ padding: '10px 18px', backgroundColor: '#F0FDF4', borderRadius: 10, border: '1px solid #BBF7D0' }}>
+                      <div style={{ fontSize: 11, color: '#047857' }}>Disbursal Sum</div>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: '#047857' }}>₹ 2,84,50,000</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live Computed Columns */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
+                  <div style={{ padding: 16, borderLeft: '3px solid #10B981', backgroundColor: '#F8FAFC' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#64748B' }}>EPF DEPOSIT (12%)</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', marginTop: 4 }}>₹ 18,40,200</div>
+                    <div style={{ fontSize: 11, color: '#10B981', marginTop: 2 }}>✓ ECR File Auto-Generated</div>
+                  </div>
+
+                  <div style={{ padding: 16, borderLeft: '3px solid #3B82F6', backgroundColor: '#F8FAFC' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#64748B' }}>ESIC CONTRIBUTION</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', marginTop: 4 }}>₹ 2,14,350</div>
+                    <div style={{ fontSize: 11, color: '#3B82F6', marginTop: 2 }}>✓ Monthly Challan Ready</div>
+                  </div>
+
+                  <div style={{ padding: 16, borderLeft: '3px solid #F59E0B', backgroundColor: '#F8FAFC' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#64748B' }}>TDS TAX DEDUCTION</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', marginTop: 4 }}>₹ 24,90,100</div>
+                    <div style={{ fontSize: 11, color: '#F59E0B', marginTop: 2 }}>✓ Form 16 / 24Q Ready</div>
+                  </div>
+
+                  <div style={{ padding: 16, borderLeft: '3px solid #023326', backgroundColor: '#F8FAFC' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#64748B' }}>DIRECT BANK BATCH</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', marginTop: 4 }}>428 / 428 Paid</div>
+                    <div style={{ fontSize: 11, color: '#059669', marginTop: 2 }}>✓ RTGS Batch Cleared</div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #F1F5F9', paddingTop: 16, fontSize: 12, color: '#64748B' }}>
+                  <span>Encrypted Payslips automatically dispatched to employees via WhatsApp & Email</span>
+                  <span style={{ fontWeight: 700, color: '#023326' }}>Audit Log Reference: #PL-2026-1184</span>
+                </div>
+              </div>
             </div>
           </div>
 
         </div>
       </section>
 
-      {/* ── Partner Logos Strip ─────────────────────────────────────── */}
-      <section style={{ padding: '40px 24px', backgroundColor: '#F8FAFC', borderTop: '1px solid #F1F5F9', borderBottom: '1px solid #F1F5F9' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', textAlign: 'center' }}>
-          <p style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#94A3B8', marginBottom: 24 }}>
-            POWERING THE WORLD\'S BEST COMPANIES
-          </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '32px 50px', fontSize: 20, fontWeight: 900, letterSpacing: '-0.02em', color: '#94A3B8' }}>
-            <span>Webflow</span>
-            <span>Discord</span>
-            <span>duolingo</span>
-            <span>asana</span>
-            <span>LinkedIn</span>
-            <span>indeed</span>
-            <span>zoom</span>
+      {/* ── CLIENT TRUST BANNER (Unboxed) ──────────────────────────── */}
+      <section style={{ borderTop: '1px solid #F1F5F9', borderBottom: '1px solid #F1F5F9', padding: '36px 24px', backgroundColor: '#FAFAFA' }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto', textAlign: 'center' }}>
+          <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#94A3B8', marginBottom: 20 }}>
+            Trusted by fast-growing startups, manufacturing giants, and chartered accountancy firms across India
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 48, flexWrap: 'wrap', opacity: 0.75 }}>
+            <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-0.02em', color: '#334155' }}>NH & ASSOCIATES</span>
+            <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em', color: '#334155' }}>VANGUARD TECH</span>
+            <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em', color: '#334155' }}>STRATA LOGISTICS</span>
+            <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em', color: '#334155' }}>ORION CAPITAL</span>
+            <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em', color: '#334155' }}>KAPITAL FINCORP</span>
           </div>
         </div>
       </section>
 
-      {/* ── Live Scrubbed Payroll Timeline Stage ────────────────────── */}
-      <section id="timeline" style={{ padding: '100px 24px', maxWidth: 1200, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 60px auto' }}>
-          <span style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#10B981', display: 'block', marginBottom: 8 }}>
-            Real-Time Engine
-          </span>
-          <h2 style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.02em', margin: 0 }}>
-            How Ploy.pe Executes Payroll in Seconds
-          </h2>
-        </div>
+      {/* ── PINNED 3-PHASE STAGE (The Engineered Peak) ──────────────── */}
+      {/* Container height is 240vh to create the scroll runway */}
+      <section
+        id="engine"
+        ref={stageRef}
+        style={{
+          position: 'relative',
+          height: '240vh',
+          backgroundColor: '#FFFFFF',
+        }}
+      >
+        {/* Sticky Viewport Container */}
+        <div
+          style={{
+            position: 'sticky',
+            top: 76,
+            height: 'calc(100vh - 76px)',
+            display: 'flex',
+            alignItems: 'center',
+            overflow: 'hidden',
+          }}
+        >
+          <div style={{ maxWidth: 1240, margin: '0 auto', padding: '0 24px', width: '100%' }}>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 440px) 1fr', gap: 60, alignItems: 'center' }}>
+              
+              {/* Left Column: Timeline Navigation */}
+              <div>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 800, color: '#10B981', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+                  <Cpu size={14} />
+                  The Ploy.pe Automation Engine
+                </div>
+                <h2 style={{ fontSize: 34, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1.15, color: '#0F172A', marginBottom: 16 }}>
+                  Scroll through the 3 phases of effortless payroll.
+                </h2>
+                <p style={{ fontSize: 14.5, color: '#64748B', lineHeight: 1.6, marginBottom: 36 }}>
+                  Watch how Ploy.pe transforms hours of stressful spreadsheet cross-checking into an instant, error-free workflow.
+                </p>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 40 }}>
-          <div style={{ borderTop: '4px solid #10B981', paddingTop: 20 }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#10B981', display: 'block', marginBottom: 8 }}>PHASE 01 / SETUP</span>
-            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#0F172A', marginBottom: 8 }}>CTC Version & Rules</h3>
-            <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.6 }}>
-              Client compensation structures (V1, V2, V3) dynamically apply component breakdown, rounding preferences, and PF cap rules.
-            </p>
-          </div>
+                {/* 3 Step Indicators */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20, position: 'relative' }}>
+                  
+                  {/* Vertical Progress Bar */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: 17,
+                      top: 10,
+                      bottom: 10,
+                      width: 2,
+                      backgroundColor: '#E2E8F0',
+                      zIndex: 0,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '100%',
+                        height: `${stageProgress * 100}%`,
+                        backgroundColor: '#10B981',
+                        transition: 'height 0.1s linear',
+                      }}
+                    />
+                  </div>
 
-          <div style={{ borderTop: '4px solid #10B981', paddingTop: 20 }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#10B981', display: 'block', marginBottom: 8 }}>PHASE 02 / RECONCILE</span>
-            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#0F172A', marginBottom: 8 }}>Attendance LOP Proration</h3>
-            <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.6 }}>
-              Biometric attendance syncs directly with editable worked days. Zero manual excel formulas needed for mid-month joiners.
-            </p>
-          </div>
+                  {/* Step 1 */}
+                  <div
+                    onClick={() => setManualPhase(0)}
+                    style={{
+                      position: 'relative',
+                      zIndex: 1,
+                      display: 'flex',
+                      gap: 16,
+                      cursor: 'pointer',
+                      padding: '12px 16px',
+                      borderRadius: 12,
+                      backgroundColor: currentPhase === 0 ? '#F0FDF4' : 'transparent',
+                      borderLeft: currentPhase === 0 ? '3px solid #10B981' : '3px solid transparent',
+                      transition: 'all 0.25s ease',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: '50%',
+                        backgroundColor: currentPhase === 0 ? '#023326' : '#FFFFFF',
+                        border: currentPhase === 0 ? '2px solid #10B981' : '2px solid #CBD5E1',
+                        color: currentPhase === 0 ? '#10B981' : '#64748B',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 13,
+                        fontWeight: 800,
+                        flexShrink: 0,
+                      }}
+                    >
+                      01
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: currentPhase === 0 ? '#0F172A' : '#64748B' }}>
+                        Universal Employee Onboarding
+                      </div>
+                      <div style={{ fontSize: 13, color: '#64748B', marginTop: 4, lineHeight: 1.4 }}>
+                        Instant Excel / HRMS sync. Auto-validates PAN, Aadhaar, Bank IFSC, and UAN before execution.
+                      </div>
+                    </div>
+                  </div>
 
-          <div style={{ borderTop: '4px solid #10B981', paddingTop: 20 }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#10B981', display: 'block', marginBottom: 8 }}>PHASE 03 / DISBURSE</span>
-            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#0F172A', marginBottom: 8 }}>1-Click Bank & Tax ECR</h3>
-            <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.6 }}>
-              Instant bank NEFT transfer sheet generation, signed PDF payslip ZIP export, and verified statutory PF/ESI filing reports.
-            </p>
+                  {/* Step 2 */}
+                  <div
+                    onClick={() => setManualPhase(1)}
+                    style={{
+                      position: 'relative',
+                      zIndex: 1,
+                      display: 'flex',
+                      gap: 16,
+                      cursor: 'pointer',
+                      padding: '12px 16px',
+                      borderRadius: 12,
+                      backgroundColor: currentPhase === 1 ? '#F0FDF4' : 'transparent',
+                      borderLeft: currentPhase === 1 ? '3px solid #10B981' : '3px solid transparent',
+                      transition: 'all 0.25s ease',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: '50%',
+                        backgroundColor: currentPhase === 1 ? '#023326' : '#FFFFFF',
+                        border: currentPhase === 1 ? '2px solid #10B981' : '2px solid #CBD5E1',
+                        color: currentPhase === 1 ? '#10B981' : '#64748B',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 13,
+                        fontWeight: 800,
+                        flexShrink: 0,
+                      }}
+                    >
+                      02
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: currentPhase === 1 ? '#0F172A' : '#64748B' }}>
+                        Zero-Touch Statutory Computation
+                      </div>
+                      <div style={{ fontSize: 13, color: '#64748B', marginTop: 4, lineHeight: 1.4 }}>
+                        EPF, ESIC, Professional Tax, and Section 115BAC New Regime TDS evaluated instantaneously.
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step 3 */}
+                  <div
+                    onClick={() => setManualPhase(2)}
+                    style={{
+                      position: 'relative',
+                      zIndex: 1,
+                      display: 'flex',
+                      gap: 16,
+                      cursor: 'pointer',
+                      padding: '12px 16px',
+                      borderRadius: 12,
+                      backgroundColor: currentPhase === 2 ? '#F0FDF4' : 'transparent',
+                      borderLeft: currentPhase === 2 ? '3px solid #10B981' : '3px solid transparent',
+                      transition: 'all 0.25s ease',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: '50%',
+                        backgroundColor: currentPhase === 2 ? '#023326' : '#FFFFFF',
+                        border: currentPhase === 2 ? '2px solid #10B981' : '2px solid #CBD5E1',
+                        color: currentPhase === 2 ? '#10B981' : '#64748B',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 13,
+                        fontWeight: 800,
+                        flexShrink: 0,
+                      }}
+                    >
+                      03
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: currentPhase === 2 ? '#0F172A' : '#64748B' }}>
+                        Direct Bank Disbursals & Compliance
+                      </div>
+                      <div style={{ fontSize: 13, color: '#64748B', marginTop: 4, lineHeight: 1.4 }}>
+                        1-Click direct payout via corporate banking APIs. Auto-delivers WhatsApp slips & EPFO challans.
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* Right Column: Morphing Interactive Screen */}
+              <div
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: 20,
+                  border: '1px solid #E2E8F0',
+                  boxShadow: '0 20px 50px -10px rgba(15, 23, 42, 0.1)',
+                  padding: '32px 36px',
+                  minHeight: 460,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                  position: 'relative',
+                  overflow: 'hidden',
+                }}
+              >
+                {/* Stage Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #F1F5F9', paddingBottom: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#10B981' }} />
+                    <span style={{ fontSize: 13, fontWeight: 800, color: '#0F172A' }}>
+                      {currentPhase === 0 && 'PHASE 01: Employee Ingestion & KYC Validation'}
+                      {currentPhase === 1 && 'PHASE 02: Real-time Statutory Computation Engine'}
+                      {currentPhase === 2 && 'PHASE 03: Direct Bank Batch & Government Filing'}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 9999, backgroundColor: '#F0FDF4', color: '#047857' }}>
+                    AUTOPILOT READY
+                  </span>
+                </div>
+
+                {/* Morphing Stage Body */}
+                <div style={{ margin: '24px 0', flex: 1 }}>
+                  
+                  {/* Phase 0 Content */}
+                  {currentPhase === 0 && (
+                    <div>
+                      <div style={{ fontSize: 12, color: '#64748B', marginBottom: 16 }}>
+                        Bulk ingest rosters via CSV, Excel, or HRMS webhook with instant data health check:
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {[
+                          { name: 'Rahul Sharma', role: 'Staff Software Eng', bank: 'HDFC Bank · IFSC HDFC000123', status: 'VERIFIED' },
+                          { name: 'Priya Nair', role: 'Product Lead', bank: 'ICICI Bank · IFSC ICIC000456', status: 'VERIFIED' },
+                          { name: 'Amit Verma', role: 'Operations Exec', bank: 'Axis Bank · IFSC UTIB000789', status: 'VERIFIED' },
+                          { name: 'Sneha Reddy', role: 'Account Director', bank: 'SBI · IFSC SBIN000321', status: 'VERIFIED' },
+                        ].map((emp, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              padding: '10px 14px',
+                              backgroundColor: '#F8FAFC',
+                              borderRadius: 8,
+                              borderLeft: '3px solid #10B981',
+                              fontSize: 13,
+                            }}
+                          >
+                            <div>
+                              <span style={{ fontWeight: 700, color: '#0F172A' }}>{emp.name}</span>
+                              <span style={{ color: '#64748B', marginLeft: 8 }}>({emp.role})</span>
+                              <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>{emp.bank}</div>
+                            </div>
+                            <span style={{ fontSize: 11, fontWeight: 800, color: '#059669', backgroundColor: '#D1FAE5', padding: '3px 8px', borderRadius: 6 }}>
+                              ✓ {emp.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: '#059669' }}>
+                        <CheckCircle2 size={16} />
+                        100% Validated: 0 Missing PANs · 0 IFSC Mismatches
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Phase 1 Content */}
+                  {currentPhase === 1 && (
+                    <div>
+                      <div style={{ fontSize: 12, color: '#64748B', marginBottom: 16 }}>
+                        Mathematical statutory engine computes deductions according to Indian labor laws:
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div style={{ padding: 14, backgroundColor: '#F8FAFC', borderRadius: 10, border: '1px solid #E2E8F0' }}>
+                          <div style={{ fontSize: 11, color: '#64748B' }}>Gross Salary Pool</div>
+                          <div style={{ fontSize: 18, fontWeight: 900, color: '#0F172A', marginTop: 4 }}>₹ 48,50,000</div>
+                          <div style={{ fontSize: 11, color: '#10B981', marginTop: 4 }}>Basic (50%) + HRA + Special</div>
+                        </div>
+
+                        <div style={{ padding: 14, backgroundColor: '#F0FDF4', borderRadius: 10, border: '1px solid #BBF7D0' }}>
+                          <div style={{ fontSize: 11, color: '#047857' }}>EPF Deduction (12%)</div>
+                          <div style={{ fontSize: 18, fontWeight: 900, color: '#047857', marginTop: 4 }}>₹ 3,49,200</div>
+                          <div style={{ fontSize: 11, color: '#047857', marginTop: 4 }}>Capped wage ceiling verified</div>
+                        </div>
+
+                        <div style={{ padding: 14, backgroundColor: '#EFF6FF', borderRadius: 10, border: '1px solid #BFDBFE' }}>
+                          <div style={{ fontSize: 11, color: '#1D4ED8' }}>ESIC Contribution</div>
+                          <div style={{ fontSize: 18, fontWeight: 900, color: '#1D4ED8', marginTop: 4 }}>₹ 38,400</div>
+                          <div style={{ fontSize: 11, color: '#1D4ED8', marginTop: 4 }}>Wage limit &lt; ₹21,000 threshold</div>
+                        </div>
+
+                        <div style={{ padding: 14, backgroundColor: '#FEF3C7', borderRadius: 10, border: '1px solid #FDE68A' }}>
+                          <div style={{ fontSize: 11, color: '#B45309' }}>TDS Auto-Regime</div>
+                          <div style={{ fontSize: 18, fontWeight: 900, color: '#B45309', marginTop: 4 }}>₹ 4,12,000</div>
+                          <div style={{ fontSize: 11, color: '#B45309', marginTop: 4 }}>Sec 115BAC vs Old Regime check</div>
+                        </div>
+                      </div>
+                      <div style={{ marginTop: 18, padding: 12, backgroundColor: '#023326', color: '#A7F3D0', borderRadius: 8, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span>⚡ Computation Engine Speed: 1,240 records processed in 1.4 seconds</span>
+                        <span style={{ fontWeight: 800, color: '#FFFFFF' }}>0 ERRORS</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Phase 2 Content */}
+                  {currentPhase === 2 && (
+                    <div>
+                      <div style={{ fontSize: 12, color: '#64748B', marginBottom: 16 }}>
+                        Direct bank disbursement and instant automated compliance returns:
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 14, backgroundColor: '#F0FDF4', borderRadius: 10, border: '1px solid #BBF7D0' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#023326', color: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
+                              ₹
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 800, color: '#0F172A', fontSize: 14 }}>Bank Disbursal Batch #8812</div>
+                              <div style={{ fontSize: 11, color: '#047857' }}>Net Payable: ₹40,50,400 via ICICI API</div>
+                            </div>
+                          </div>
+                          <span style={{ fontSize: 11, fontWeight: 800, color: '#047857', backgroundColor: '#D1FAE5', padding: '4px 10px', borderRadius: 6 }}>
+                            DISBURSED TO ALL
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                          <div style={{ padding: 12, backgroundColor: '#F8FAFC', borderRadius: 8, border: '1px solid #E2E8F0' }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: '#0F172A' }}>WhatsApp & Email Slips</div>
+                            <div style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>Delivered to 100% staff phone & inbox</div>
+                          </div>
+                          <div style={{ padding: 12, backgroundColor: '#F8FAFC', borderRadius: 8, border: '1px solid #E2E8F0' }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: '#0F172A' }}>EPFO ECR & ESIC Challan</div>
+                            <div style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>Auto-formatted text files ready for upload</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ marginTop: 20, textAlign: 'center' }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#023326', backgroundColor: '#E6F4EA', padding: '6px 14px', borderRadius: 9999 }}>
+                          Cycle Complete in 3 Mins · Next Month Ready
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+
+                {/* Stage Footer Progress */}
+                <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
+                  <span style={{ color: '#64748B' }}>
+                    {currentPhase === 0 && 'Phase 1 of 3: Roster Ingestion'}
+                    {currentPhase === 1 && 'Phase 2 of 3: Computation & Tax'}
+                    {currentPhase === 2 && 'Phase 3 of 3: Bank Disbursal'}
+                  </span>
+                  <span style={{ fontWeight: 800, color: '#10B981' }}>
+                    {Math.round(stageProgress * 100)}% Through Workflow
+                  </span>
+                </div>
+
+              </div>
+
+            </div>
+
           </div>
         </div>
       </section>
 
-      {/* ── Why Choose Ploy.pe Section ──────────────────────────────── */}
-      <section id="why-us" style={{ padding: '100px 24px', backgroundColor: '#F8FAFC' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <div style={{ maxWidth: 700, marginBottom: 60 }}>
-            <span style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#10B981', display: 'block', marginBottom: 12 }}>
-              Why Choose Ploy.pe
-            </span>
-            <h2 style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 900, letterSpacing: '-0.02em', lineHeight: 1.2, color: '#0F172A', marginBottom: 20 }}>
-              Empowers HR with <span style={{ color: '#10B981' }}>AI-driven</span> tools to optimize teams, boost productivity, and drive success.
-            </h2>
-            <p style={{ fontSize: 16, color: '#475569', lineHeight: 1.6 }}>
-              Eliminate fragmented spreadsheets and slow legacy portals. Ploy.pe brings performance reviews, payroll proration, goal alignment, and hiring under one seamless experience.
-            </p>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 40, borderTop: '1px solid #E2E8F0', paddingTop: 50 }}>
-            <div>
-              <div style={{ fontSize: 48, fontWeight: 900, color: '#0F172A', marginBottom: 6 }}>5K+</div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: '#1E293B', marginBottom: 6 }}>Organizations trust Ploy.pe</div>
-              <p style={{ fontSize: 13.5, color: '#64748B', lineHeight: 1.6 }}>
-                From fast-scaling startups to global enterprise workforces managing complex compensation.
-              </p>
-            </div>
-
-            <div>
-              <div style={{ fontSize: 48, fontWeight: 900, color: '#0F172A', marginBottom: 6 }}>78%</div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: '#1E293B', marginBottom: 6 }}>Reduces administration time</div>
-              <p style={{ fontSize: 13.5, color: '#64748B', lineHeight: 1.6 }}>
-                Automate routine onboarding, salary adjustments, and statutory compliance paperwork.
-              </p>
-            </div>
-
-            <div>
-              <div style={{ fontSize: 48, fontWeight: 900, color: '#10B981', marginBottom: 6 }}>25%</div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: '#1E293B', marginBottom: 6 }}>Reduced manual operational work</div>
-              <p style={{ fontSize: 13.5, color: '#64748B', lineHeight: 1.6 }}>
-                Streamlined approval chains and self-service portals free HR teams to focus on team strategy.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Capabilities (No Boxes, Editorial Columns) ──────────────── */}
-      <section id="capabilities" style={{ padding: '100px 24px', maxWidth: 1200, margin: '0 auto' }}>
-        <div style={{ maxWidth: 700, marginBottom: 60 }}>
-          <span style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#10B981', display: 'block', marginBottom: 8 }}>
-            Improve Manager Productivity
-          </span>
-          <h2 style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.02em', margin: 0 }}>
-            Empowered Managers, Higher Performing Teams
-          </h2>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 48 }}>
-          <div>
-            <div style={{ fontSize: 28, marginBottom: 12 }}>🎯</div>
-            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#0F172A', marginBottom: 8 }}>Goals & OKRs</h3>
-            <p style={{ fontSize: 13.5, color: '#64748B', lineHeight: 1.6 }}>
-              Keep teams aligned with cascading goals and transparent OKRs tracked across quarters without disjointed documents.
-            </p>
-          </div>
-
-          <div>
-            <div style={{ fontSize: 28, marginBottom: 12 }}>📊</div>
-            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#0F172A', marginBottom: 8 }}>Analytics & Reviews</h3>
-            <p style={{ fontSize: 13.5, color: '#64748B', lineHeight: 1.6 }}>
-              Seamlessly connect performance review cycle results into compensation decisions, creating fair and equitable pay outcomes.
-            </p>
-          </div>
-
-          <div>
-            <div style={{ fontSize: 28, marginBottom: 12 }}>🌱</div>
-            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#0F172A', marginBottom: 8 }}>Grow Career Tracks</h3>
-            <p style={{ fontSize: 13.5, color: '#64748B', lineHeight: 1.6 }}>
-              Give employees clear paths to advancement with competencies, career tracks, and personalized growth plans.
-            </p>
-            <div style={{ color: '#10B981', fontWeight: 700, fontSize: 12, marginTop: 8 }}>
-              Reduced turnover 27% across scaling teams.
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Direct Frameless CTA & Lead Form ────────────────────────── */}
-      <section id="contact" style={{ padding: '110px 24px', backgroundColor: '#022C22', color: '#FFFFFF' }}>
-        <div style={{ maxWidth: 800, margin: '0 auto', textAlign: 'center' }}>
+      {/* ── STATS & COMPLIANCE METRICS (Reveals on Scroll) ─────────── */}
+      <section
+        id="stats"
+        ref={statsRef}
+        style={{ padding: '96px 24px', backgroundColor: '#023326', color: '#FFFFFF' }}
+      >
+        <div id="stats-section" className="scroll-animate" style={{ maxWidth: 1240, margin: '0 auto' }}>
           
-          <div style={{ display: 'inline-block', padding: '6px 14px', borderRadius: 9999, backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#6EE7B7', fontSize: 12, fontWeight: 700, marginBottom: 20 }}>
-            Get Started Today
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 24, marginBottom: 64 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: '#10B981', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
+                PROVEN STATISTICAL PERFORMANCE
+              </div>
+              <h2 style={{ fontSize: 'clamp(28px, 3.8vw, 44px)', fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1.15 }}>
+                Engineered for 100% audit readiness.
+              </h2>
+            </div>
+            <p style={{ maxWidth: 440, fontSize: 14.5, color: '#A7F3D0', lineHeight: 1.6 }}>
+              Whether you are managing 50 employees across 1 client, or 10,000 employees across 40 corporate entities, Ploy.pe enforces zero mathematical tolerance.
+            </p>
           </div>
 
-          <h2 style={{ fontSize: 'clamp(32px, 5vw, 52px)', fontWeight: 900, letterSpacing: '-0.02em', marginBottom: 16 }}>
-            One Platform For All Your HR Needs
-          </h2>
+          {/* Numbers Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 32 }}>
+            
+            <div style={{ borderLeft: '2px solid #10B981', paddingLeft: 20 }}>
+              <div style={{ fontSize: 'clamp(38px, 4.5vw, 56px)', fontWeight: 900, letterSpacing: '-0.03em', color: '#FFFFFF' }}>
+                {accuracyCount}%
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#A7F3D0', marginTop: 6 }}>
+                Statutory Accuracy Rate
+              </div>
+              <p style={{ fontSize: 13, color: '#6EE7B7', marginTop: 6, lineHeight: 1.5 }}>
+                Zero miscalculations in EPF, ESIC, PT slabs, and income tax regimes across all states.
+              </p>
+            </div>
 
-          <p style={{ fontSize: 16, color: '#A7F3D0', maxWidth: 540, margin: '0 auto 48px auto', lineHeight: 1.6 }}>
-            Join thousands of forward-thinking companies streamlining their people and payroll operations with Ploy.pe.
+            <div style={{ borderLeft: '2px solid #10B981', paddingLeft: 20 }}>
+              <div style={{ fontSize: 'clamp(38px, 4.5vw, 56px)', fontWeight: 900, letterSpacing: '-0.03em', color: '#FFFFFF' }}>
+                &lt; {timeCount} Mins
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#A7F3D0', marginTop: 6 }}>
+                Average Monthly Run Time
+              </div>
+              <p style={{ fontSize: 13, color: '#6EE7B7', marginTop: 6, lineHeight: 1.5 }}>
+                From roster upload to final payslip generation and banking payout confirmation.
+              </p>
+            </div>
+
+            <div style={{ borderLeft: '2px solid #10B981', paddingLeft: 20 }}>
+              <div style={{ fontSize: 'clamp(38px, 4.5vw, 56px)', fontWeight: 900, letterSpacing: '-0.03em', color: '#FFFFFF' }}>
+                100%
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#A7F3D0', marginTop: 6 }}>
+                Bank Gateway Compatibility
+              </div>
+              <p style={{ fontSize: 13, color: '#6EE7B7', marginTop: 6, lineHeight: 1.5 }}>
+                Instant salary disbursement file generation for HDFC, ICICI, SBI, Axis, and Kotak.
+              </p>
+            </div>
+
+            <div style={{ borderLeft: '2px solid #10B981', paddingLeft: 20 }}>
+              <div style={{ fontSize: 'clamp(38px, 4.5vw, 56px)', fontWeight: 900, letterSpacing: '-0.03em', color: '#FFFFFF' }}>
+                0
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#A7F3D0', marginTop: 6 }}>
+                Compliance Penalties
+              </div>
+              <p style={{ fontSize: 13, color: '#6EE7B7', marginTop: 6, lineHeight: 1.5 }}>
+                Guaranteed deadline alerts, pre-formatted challans, and real-time labor law updates.
+              </p>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      {/* ── INTERACTIVE IMPACT CALCULATOR (Signature Move) ─────────── */}
+      <section id="calculator" style={{ padding: '96px 24px', backgroundColor: '#FFFFFF' }}>
+        <div className="scroll-animate" style={{ maxWidth: 1040, margin: '0 auto' }}>
+          
+          <div style={{ textAlign: 'center', marginBottom: 48 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 800, color: '#10B981', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+              <Sparkles size={14} />
+              Interactive Capacity Estimator
+            </div>
+            <h2 style={{ fontSize: 'clamp(28px, 3.8vw, 42px)', fontWeight: 900, letterSpacing: '-0.03em', color: '#0F172A' }}>
+              See what Ploy.pe automates for your organization.
+            </h2>
+            <p style={{ fontSize: 15, color: '#64748B', maxWidth: 600, margin: '12px auto 0 auto' }}>
+              Select your team size to estimate monthly payroll volume and operational hours saved.
+            </p>
+          </div>
+
+          {/* Interactive Headcount Buttons */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 40 }}>
+            {[25, 50, 100, 250, 500, 1000].map((count) => (
+              <button
+                key={count}
+                onClick={() => setHeadcount(count)}
+                style={{
+                  padding: '12px 24px',
+                  borderRadius: 9999,
+                  border: headcount === count ? '2px solid #023326' : '1px solid #CBD5E1',
+                  backgroundColor: headcount === count ? '#023326' : '#FFFFFF',
+                  color: headcount === count ? '#FFFFFF' : '#334155',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {count} Employees
+              </button>
+            ))}
+          </div>
+
+          {/* Calculated Output Card */}
+          <div
+            style={{
+              backgroundColor: '#FAFAFA',
+              borderRadius: 20,
+              border: '1px solid #E2E8F0',
+              padding: '36px 44px',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: 32,
+              textAlign: 'center',
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#64748B' }}>MONTHLY PAYROLL VOLUME</div>
+              <div style={{ fontSize: 28, fontWeight: 900, color: '#0F172A', marginTop: 8 }}>
+                ₹ {(totalMonthlyPayroll / 100000).toFixed(1)} Lakhs
+              </div>
+              <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>Calculated across all CTC tiers</div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#047857' }}>EPF & ESIC HANDLED</div>
+              <div style={{ fontSize: 28, fontWeight: 900, color: '#047857', marginTop: 8 }}>
+                ₹ {(epfEsicHandled / 100000).toFixed(1)} Lakhs
+              </div>
+              <div style={{ fontSize: 11, color: '#10B981', marginTop: 4 }}>Statutory files prepared automatically</div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#023326' }}>HR / CA HOURS SAVED</div>
+              <div style={{ fontSize: 28, fontWeight: 900, color: '#023326', marginTop: 8 }}>
+                {hoursSaved} Hours / mo
+              </div>
+              <div style={{ fontSize: 11, color: '#059669', marginTop: 4 }}>Reduced from days to 15 minutes</div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* ── INBOUND LEAD CAPTURE & CTA ─────────────────────────────── */}
+      <section
+        id="contact"
+        style={{
+          padding: '96px 24px',
+          backgroundColor: '#023326',
+          color: '#FFFFFF',
+          position: 'relative',
+        }}
+      >
+        <div className="scroll-animate" style={{ maxWidth: 880, margin: '0 auto', textAlign: 'center' }}>
+          
+          <div style={{ fontSize: 12, fontWeight: 800, color: '#10B981', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>
+            DIRECT CONSULTATION WITH PAYROLL EXPERTS
+          </div>
+          <h2 style={{ fontSize: 'clamp(32px, 4.4vw, 54px)', fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1.15, marginBottom: 20 }}>
+            Ready to upgrade your enterprise to Ploy.pe?
+          </h2>
+          <p style={{ fontSize: 16, color: '#A7F3D0', maxWidth: 640, margin: '0 auto 48px auto', lineHeight: 1.6 }}>
+            Leave your details below. An executive payroll specialist from NH Associates will call you to walk you through a custom instance.
           </p>
 
+          {/* Embedded Inbound Lead Form */}
           {!submitted ? (
-            <form onSubmit={handleSubmit} style={{ maxWidth: 580, margin: '0 auto', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 20 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20 }}>
+            <form
+              onSubmit={handleSubmit}
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: 20,
+                padding: '36px 40px',
+                textAlign: 'left',
+                boxShadow: '0 25px 60px rgba(0, 0, 0, 0.25)',
+                color: '#0F172A',
+              }}
+            >
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20, marginBottom: 20 }}>
                 <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#A7F3D0', display: 'block', marginBottom: 6 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
                     Full Name *
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="Rajiv Menon"
+                    placeholder="e.g. Rajesh Kumar"
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    style={{ width: '100%', padding: '12px 14px', background: 'rgba(255, 255, 255, 0.08)', border: 'none', borderBottom: '2px solid rgba(110, 231, 183, 0.6)', color: '#FFFFFF', fontSize: 14, outline: 'none' }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px',
+                      borderRadius: 8,
+                      border: '1px solid #CBD5E1',
+                      fontSize: 14,
+                      outline: 'none',
+                    }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#A7F3D0', display: 'block', marginBottom: 6 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
                     Work Email *
                   </label>
                   <input
                     type="email"
                     required
-                    placeholder="rajiv@company.com"
+                    placeholder="e.g. rajesh@company.com"
                     value={form.email}
                     onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    style={{ width: '100%', padding: '12px 14px', background: 'rgba(255, 255, 255, 0.08)', border: 'none', borderBottom: '2px solid rgba(110, 231, 183, 0.6)', color: '#FFFFFF', fontSize: 14, outline: 'none' }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px',
+                      borderRadius: 8,
+                      border: '1px solid #CBD5E1',
+                      fontSize: 14,
+                      outline: 'none',
+                    }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#A7F3D0', display: 'block', marginBottom: 6 }}>
-                    Mobile Number *
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                    Mobile / WhatsApp Number *
                   </label>
                   <input
                     type="tel"
                     required
-                    placeholder="+91 98765 43210"
+                    placeholder="e.g. +91 98765 43210"
                     value={form.phone}
                     onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    style={{ width: '100%', padding: '12px 14px', background: 'rgba(255, 255, 255, 0.08)', border: 'none', borderBottom: '2px solid rgba(110, 231, 183, 0.6)', color: '#FFFFFF', fontSize: 14, outline: 'none' }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px',
+                      borderRadius: 8,
+                      border: '1px solid #CBD5E1',
+                      fontSize: 14,
+                      outline: 'none',
+                    }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#A7F3D0', display: 'block', marginBottom: 6 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
                     Company Name *
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="Apex Technologies Ltd"
+                    placeholder="e.g. Apex Technologies Ltd."
                     value={form.company_name}
                     onChange={(e) => setForm({ ...form, company_name: e.target.value })}
-                    style={{ width: '100%', padding: '12px 14px', background: 'rgba(255, 255, 255, 0.08)', border: 'none', borderBottom: '2px solid rgba(110, 231, 183, 0.6)', color: '#FFFFFF', fontSize: 14, outline: 'none' }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px',
+                      borderRadius: 8,
+                      border: '1px solid #CBD5E1',
+                      fontSize: 14,
+                      outline: 'none',
+                    }}
                   />
                 </div>
               </div>
 
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#A7F3D0', display: 'block', marginBottom: 6 }}>
-                  Team Size *
+              <div style={{ marginBottom: 24 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                  Current Total Headcount
                 </label>
                 <select
                   value={form.team_size}
                   onChange={(e) => setForm({ ...form, team_size: e.target.value })}
-                  style={{ width: '100%', padding: '12px 14px', background: 'rgba(255, 255, 255, 0.08)', border: 'none', borderBottom: '2px solid rgba(110, 231, 183, 0.6)', color: '#FFFFFF', fontSize: 14, outline: 'none' }}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    borderRadius: 8,
+                    border: '1px solid #CBD5E1',
+                    fontSize: 14,
+                    outline: 'none',
+                    backgroundColor: '#FFFFFF',
+                  }}
                 >
-                  <option value="1-20" style={{ color: '#0F172A' }}>1 – 20 Employees</option>
-                  <option value="21-100" style={{ color: '#0F172A' }}>21 – 100 Employees</option>
-                  <option value="101-500" style={{ color: '#0F172A' }}>101 – 500 Employees</option>
-                  <option value="500+" style={{ color: '#0F172A' }}>500+ Employees</option>
+                  <option value="1-20">1 - 20 Employees (Early Stage)</option>
+                  <option value="21-50">21 - 50 Employees (Growing)</option>
+                  <option value="51-200">51 - 200 Employees (Mid-Market)</option>
+                  <option value="201-1000">201 - 1,000 Employees (Enterprise)</option>
+                  <option value="1000+">1,000+ Employees (Conglomerate)</option>
                 </select>
               </div>
 
@@ -450,27 +1260,41 @@ export default function LandingPage() {
                 type="submit"
                 disabled={submitting}
                 style={{
-                  marginTop: 10,
-                  padding: '16px 32px',
-                  borderRadius: 9999,
-                  backgroundColor: '#10B981',
+                  width: '100%',
+                  padding: '16px',
+                  borderRadius: 10,
+                  backgroundColor: '#023326',
                   color: '#FFFFFF',
+                  fontSize: 16,
                   fontWeight: 800,
-                  fontSize: 15,
                   border: 'none',
                   cursor: 'pointer',
-                  boxShadow: '0 8px 24px rgba(16, 185, 129, 0.35)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 10,
+                  boxShadow: '0 10px 25px rgba(2, 51, 38, 0.3)',
                 }}
               >
-                {submitting ? 'Submitting...' : 'Request Callback & Demo'}
+                {submitting ? 'Submitting Inquiry...' : 'Request An Immediate Callback'}
+                <ArrowRight size={18} color="#10B981" />
               </button>
             </form>
           ) : (
-            <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-              <div style={{ fontSize: 40, color: '#10B981', marginBottom: 12 }}>✓</div>
-              <h3 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Inquiry Received!</h3>
-              <p style={{ color: '#A7F3D0', fontSize: 14 }}>
-                Our senior payroll & HR advisor will call you at your phone number shortly.
+            <div
+              style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                borderRadius: 20,
+                padding: '48px 32px',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+              }}
+            >
+              <div style={{ width: 56, height: 56, borderRadius: '50%', backgroundColor: '#10B981', color: '#023326', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto' }}>
+                <Check size={32} />
+              </div>
+              <h3 style={{ fontSize: 28, fontWeight: 900, marginBottom: 12 }}>Callback Request Confirmed!</h3>
+              <p style={{ color: '#A7F3D0', fontSize: 16, maxWidth: 520, margin: '0 auto' }}>
+                Thank you, {form.name}. A senior payroll advisor from NH Associates will call you at {form.phone} shortly.
               </p>
             </div>
           )}
@@ -478,46 +1302,79 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Footer ─────────────────────────────────────────────────── */}
-      <footer style={{ padding: '60px 24px', backgroundColor: '#FFFFFF', borderTop: '1px solid #F1F5F9', fontSize: 12, color: '#64748B' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: '#023326', color: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>P</div>
-            <span style={{ fontWeight: 800, color: '#0F172A', fontSize: 15 }}>Ploy.pe</span>
-            <span style={{ color: '#94A3B8' }}>by NH Associates · Gurugram, India</span>
+      {/* ── FOOTER (Unboxed Studio Editorial) ───────────────────────── */}
+      <footer style={{ padding: '64px 24px', backgroundColor: '#FFFFFF', borderTop: '1px solid #F1F5F9' }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 24 }}>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: '#023326', color: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900 }}>
+              P
+            </div>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 900, color: '#0F172A' }}>Ploy.pe</div>
+              <div style={{ fontSize: 11, color: '#64748B' }}>A product of NH Associates · Chartered Accountants</div>
+            </div>
           </div>
-          <div>© 2026 Ploy.pe by NH Associates. All rights reserved.</div>
+
+          <div style={{ fontSize: 13, color: '#64748B' }}>
+            Gurugram · Delhi NCR · Mumbai · Bengaluru · India
+          </div>
+
+          <div style={{ fontSize: 12, color: '#94A3B8' }}>
+            © {new Date().getFullYear()} Ploy.pe by NH Associates. All rights reserved.
+          </div>
         </div>
       </footer>
 
-      {/* ── Interactive Modal ───────────────────────────────────────── */}
+      {/* ── MODAL CALLBACK POPUP ───────────────────────────────────── */}
       {showModal && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 1000,
-            backgroundColor: 'rgba(0, 0, 0, 0.6)',
-            backdropFilter: 'blur(4px)',
+            zIndex: 99999,
+            backgroundColor: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(6px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             padding: 20,
           }}
         >
-          <div style={{ backgroundColor: '#FFFFFF', borderRadius: 24, padding: 36, maxWidth: 480, width: '100%', position: 'relative', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: 24,
+              padding: '36px 40px',
+              maxWidth: 480,
+              width: '100%',
+              position: 'relative',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.3)',
+            }}
+          >
             <button
               onClick={() => setShowModal(false)}
-              style={{ position: 'absolute', top: 20, right: 20, background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#64748B' }}
+              style={{
+                position: 'absolute',
+                top: 20,
+                right: 20,
+                background: 'none',
+                border: 'none',
+                fontSize: 20,
+                cursor: 'pointer',
+                color: '#64748B',
+              }}
             >
               ✕
             </button>
-            <h3 style={{ fontSize: 22, fontWeight: 900, color: '#0F172A', marginBottom: 6 }}>
-              Schedule A Demo with Ploy.pe
+
+            <h3 style={{ fontSize: 22, fontWeight: 900, color: '#0F172A', marginBottom: 8 }}>
+              Schedule Direct Callback
             </h3>
-            <p style={{ fontSize: 13, color: '#64748B', marginBottom: 24 }}>
-              Leave your details below and an advisor will call you within 15 minutes.
+            <p style={{ fontSize: 13.5, color: '#64748B', marginBottom: 24, lineHeight: 1.5 }}>
+              Enter your contact details and our senior partner will call you directly.
             </p>
+
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <input
                 type="text"
@@ -525,7 +1382,7 @@ export default function LandingPage() {
                 placeholder="Full Name *"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: 13.5 }}
+                style={{ padding: '12px 14px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: 14 }}
               />
               <input
                 type="email"
@@ -533,15 +1390,15 @@ export default function LandingPage() {
                 placeholder="Work Email *"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
-                style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: 13.5 }}
+                style={{ padding: '12px 14px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: 14 }}
               />
               <input
                 type="tel"
                 required
-                placeholder="Mobile Number *"
+                placeholder="Mobile / WhatsApp Number *"
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: 13.5 }}
+                style={{ padding: '12px 14px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: 14 }}
               />
               <input
                 type="text"
@@ -549,29 +1406,30 @@ export default function LandingPage() {
                 placeholder="Company Name *"
                 value={form.company_name}
                 onChange={(e) => setForm({ ...form, company_name: e.target.value })}
-                style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: 13.5 }}
+                style={{ padding: '12px 14px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: 14 }}
               />
               <button
                 type="submit"
                 disabled={submitting}
                 style={{
-                  marginTop: 10,
-                  padding: '12px',
-                  borderRadius: 9999,
+                  marginTop: 8,
+                  padding: '14px',
+                  borderRadius: 10,
                   backgroundColor: '#023326',
                   color: '#FFFFFF',
-                  fontWeight: 700,
-                  fontSize: 14,
+                  fontWeight: 800,
+                  fontSize: 15,
                   border: 'none',
                   cursor: 'pointer',
                 }}
               >
-                {submitting ? 'Submitting...' : 'Submit Request'}
+                {submitting ? 'Submitting...' : 'Submit Callback Request'}
               </button>
             </form>
           </div>
         </div>
       )}
+
     </div>
   );
 }
