@@ -16,6 +16,7 @@ import RunPayrollPage from './pages/RunPayrollPage';
 import PayrollRunDetailPage from './pages/PayrollRunDetailPage';
 import BulkImportPage from './pages/BulkImportPage';
 import ReportsPage from './pages/ReportsPage';
+import AdminPage from './pages/AdminPage';
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -48,6 +49,7 @@ export default function App() {
         <Route index element={<DashboardPage />} />
         <Route path="clients" element={<ClientsPage />} />
         <Route path="reports" element={<ReportsPage />} />
+        <Route path="admin" element={<AdminPage />} />
         <Route path="clients/:id" element={<ClientDetailPage />} />
         <Route path="clients/:id/structure" element={<CTCStructurePage />} />
         <Route path="clients/:id/structure/new" element={<CTCStructureFormPage />} />
