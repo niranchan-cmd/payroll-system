@@ -4,22 +4,46 @@ import api from '../services/api';
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const cached = localStorage.getItem('payroll_user');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(true);
 
-  // Try to restore session on mount via refresh token (stored as httpOnly cookie)
+  // Restore or verify session
   useEffect(() => {
     async function restoreSession() {
-      try {
-        const res = await api.post('/auth/refresh');
-        const { accessToken, user: me } = res.data.data;
-        window.__payroll_access_token__ = accessToken;
+      const cachedToken = localStorage.getItem('payroll_access_token');
+      if (cachedToken) {
+        window.__payroll_access_token__ = cachedToken;
+      }
 
-        // Fetch full user profile
+      try {
+        // Attempt to fetch profile with existing token
         const meRes = await api.get('/auth/me');
-        setUser(meRes.data.data);
-      } catch {
-        setUser(null);
+        const userData = meRes.data.data;
+        setUser(userData);
+        localStorage.setItem('payroll_user', JSON.stringify(userData));
+      } catch (meErr) {
+        // Token might be expired, try refresh
+        try {
+          const res = await api.post('/auth/refresh');
+          const { accessToken, user: me } = res.data.data;
+          window.__payroll_access_token__ = accessToken;
+          localStorage.setItem('payroll_access_token', accessToken);
+          setUser(me);
+          localStorage.setItem('payroll_user', JSON.stringify(me));
+        } catch {
+          // Both failed, clear session
+          window.__payroll_access_token__ = null;
+          localStorage.removeItem('payroll_access_token');
+          localStorage.removeItem('payroll_user');
+          setUser(null);
+        }
       } finally {
         setLoading(false);
       }
@@ -27,11 +51,13 @@ export function AuthProvider({ children }) {
     restoreSession();
   }, []);
 
-  // Listen for forced logout events from the API interceptor
+  // Listen for forced logout events
   useEffect(() => {
     const handler = () => {
       setUser(null);
       window.__payroll_access_token__ = null;
+      localStorage.removeItem('payroll_access_token');
+      localStorage.removeItem('payroll_user');
     };
     window.addEventListener('auth:logout', handler);
     return () => window.removeEventListener('auth:logout', handler);
@@ -41,6 +67,8 @@ export function AuthProvider({ children }) {
     const res = await api.post('/auth/login', { email, password });
     const { accessToken, user: loggedIn } = res.data.data;
     window.__payroll_access_token__ = accessToken;
+    localStorage.setItem('payroll_access_token', accessToken);
+    localStorage.setItem('payroll_user', JSON.stringify(loggedIn));
     setUser(loggedIn);
     return loggedIn;
   }, []);
@@ -50,6 +78,8 @@ export function AuthProvider({ children }) {
       await api.post('/auth/logout');
     } catch {}
     window.__payroll_access_token__ = null;
+    localStorage.removeItem('payroll_access_token');
+    localStorage.removeItem('payroll_user');
     setUser(null);
   }, []);
 
