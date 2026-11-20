@@ -2,28 +2,28 @@ import { createContext, useContext, useState, useEffect } from 'react';
 
 const THEMES = [
   {
-    id: 'midnight',
-    name: 'Midnight Indigo',
-    type: 'dark',
-    primary: '#4f6ef7',
-    bg: '#0b0f1a',
-    surface: '#111827',
-  },
-  {
     id: 'light',
-    name: 'Executive Light',
+    name: 'Swiss Clean White',
     type: 'light',
-    primary: '#3b5bdb',
-    bg: '#f8fafc',
-    surface: '#ffffff',
+    primary: '#023326',
+    bg: '#ffffff',
+    surface: '#f8fafc',
   },
   {
     id: 'emerald',
-    name: 'Emerald Wealth',
+    name: 'Obsidian & Emerald',
     type: 'dark',
     primary: '#10b981',
-    bg: '#06130e',
-    surface: '#0d201a',
+    bg: '#030712',
+    surface: '#0b0f17',
+  },
+  {
+    id: 'midnight',
+    name: 'Executive Midnight',
+    type: 'dark',
+    primary: '#4f6ef7',
+    bg: '#090d16',
+    surface: '#0f172a',
   },
   {
     id: 'amethyst',
@@ -41,25 +41,21 @@ const THEMES = [
     bg: '#140f09',
     surface: '#201912',
   },
-  {
-    id: 'slate',
-    name: 'Nordic Cyan',
-    type: 'dark',
-    primary: '#06b6d4',
-    bg: '#09131a',
-    surface: '#101e28',
-  },
 ];
 
 const ThemeContext = createContext({
-  theme: 'midnight',
+  theme: 'light',
   setTheme: () => {},
   themes: THEMES,
 });
 
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(() => {
-    return localStorage.getItem('ployepe_theme') || localStorage.getItem('payease_theme') || 'midnight';
+    // Default to 'light' (Swiss Clean White)
+    const saved = localStorage.getItem('ployepe_theme');
+    // If previously saved as 'emerald' (old muddy theme), reset to 'light' for clean experience
+    if (!saved || saved === 'emerald') return 'light';
+    return saved;
   });
 
   useEffect(() => {
