@@ -16,6 +16,7 @@ export default function AdminPage() {
   const [usersList, setUsersList] = useState([]);
   const [clientsList, setClientsList] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
+  const [leadsList, setLeadsList] = useState([]);
 
   // Create User Modal state
   const [showAddUserModal, setShowAddUserModal] = useState(false);
@@ -34,20 +35,33 @@ export default function AdminPage() {
   async function loadAllData() {
     setLoading(true);
     try {
-      const [statsRes, usersRes, clientsRes, auditRes] = await Promise.all([
+      const [statsRes, usersRes, clientsRes, auditRes, leadsRes] = await Promise.all([
         api.get('/admin/stats'),
         api.get('/admin/users'),
         api.get('/admin/clients-summary'),
         api.get('/admin/audit-logs'),
+        api.get('/leads/admin'),
       ]);
       setStats(statsRes.data.data);
       setUsersList(usersRes.data.data);
       setClientsList(clientsRes.data.data);
       setAuditLogs(auditRes.data.data);
+      setLeadsList(leadsRes.data.data);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to load admin data.');
     } finally {
       setLoading(false);
+    }
+  }
+
+  
+  async function handleUpdateLeadStatus(leadId, newStatus) {
+    try {
+      await api.patch(`/leads/admin/${leadId}`, { status: newStatus });
+      toast.success(`Lead marked as ${newStatus}`);
+      setLeadsList(prev => prev.map(l => l.id === leadId ? { ...l, status: newStatus } : l));
+    } catch (err) {
+      toast.error('Failed to update lead status');
     }
   }
 
@@ -291,6 +305,22 @@ export default function AdminPage() {
         >
           System Audit Feed ({auditLogs.length})
         </button>
+
+        <button
+          onClick={() => setActiveTab('leads')}
+          style={{
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'leads' ? '2px solid var(--accent)' : '2px solid transparent',
+            color: activeTab === 'leads' ? 'var(--text-primary)' : 'var(--text-muted)',
+            fontWeight: activeTab === 'leads' ? 600 : 500,
+            fontSize: 14,
+            padding: '10px 16px',
+            cursor: 'pointer',
+          }}
+        >
+          Inbound Leads ({leadsList.filter(l => l.status === 'NEW').length} New)
+        </button>
       </div>
 
       {/* ── TAB 1: Clients Overview ───────────────────────────────── */}
@@ -514,6 +544,82 @@ export default function AdminPage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      
+      {/* ── TAB 4: Inbound Leads ─────────────────────────────────── */}
+      {activeTab === 'leads' && (
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ fontSize: 16, margin: 0 }}>Website Inbound Leads & Callback Queue</h2>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{leadsList.length} total inquiries</span>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: 'var(--bg-elevated)', textAlign: 'left', fontSize: 12 }}>
+                  <th style={{ padding: '12px 16px' }}>Prospect Name</th>
+                  <th style={{ padding: '12px 16px' }}>Company</th>
+                  <th style={{ padding: '12px 16px' }}>Contact Phone / Email</th>
+                  <th style={{ padding: '12px 16px' }}>Team Size</th>
+                  <th style={{ padding: '12px 16px' }}>Status</th>
+                  <th style={{ padding: '12px 16px' }}>Received</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leadsList.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                      No incoming leads yet.
+                    </td>
+                  </tr>
+                ) : (
+                  leadsList.map((lead) => (
+                    <tr key={lead.id} style={{ borderBottom: '1px solid var(--border-subtle)', fontSize: 13 }}>
+                      <td style={{ padding: '12px 16px', fontWeight: 600 }}>{lead.name}</td>
+                      <td style={{ padding: '12px 16px' }}>{lead.company_name}</td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <div><a href={`tel:${lead.phone}`} style={{ color: 'var(--accent-light)', textDecoration: 'none', fontWeight: 600 }}>{lead.phone}</a></div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{lead.email}</div>
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>{lead.team_size}</td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            padding: '3px 8px',
+                            borderRadius: 12,
+                            background: lead.status === 'NEW' ? 'rgba(234, 179, 8, 0.15)' : lead.status === 'CONTACTED' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                            color: lead.status === 'NEW' ? '#eab308' : lead.status === 'CONTACTED' ? '#3b82f6' : '#10b981',
+                          }}
+                        >
+                          {lead.status}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text-muted)' }}>
+                        {new Date(lead.created_at).toLocaleString()}
+                      </td>
+                      <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                        <select
+                          value={lead.status}
+                          onChange={(e) => handleUpdateLeadStatus(lead.id, e.target.value)}
+                          className="form-input"
+                          style={{ padding: '4px 8px', fontSize: 11, width: 'auto' }}
+                        >
+                          <option value="NEW">NEW</option>
+                          <option value="CONTACTED">CONTACTED</option>
+                          <option value="CONVERTED">CONVERTED</option>
+                        </select>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
