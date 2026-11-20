@@ -17,6 +17,7 @@ const { flatRouter: employeeFlatRouter } = require('./routes/employee.routes');
 const payrollRoutes = require('./routes/payroll.routes');
 const importRoutes = require('./routes/import.routes');
 const reportRoutes = require('./routes/report.routes');
+const adminRoutes = require('./routes/admin.routes');
 const { errorResponse } = require('./utils/response.utils');
 
 const app = express();
@@ -82,6 +83,9 @@ app.use('/api/v1/clients/:clientId/employees/import', importRoutes);
 
 // Reports: /api/v1/reports
 app.use('/api/v1/reports', reportRoutes);
+
+// Admin: /api/v1/admin
+app.use('/api/v1/admin', adminRoutes);
 
 // Health check
 app.get('/api/v1/health', (req, res) => {
