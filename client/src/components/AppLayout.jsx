@@ -12,7 +12,7 @@ import ThemeSelector from './ThemeSelector';
 import ChangePasswordModal from './ChangePasswordModal';
 
 const navItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', exact: true },
   { to: '/clients', icon: Building2, label: 'Clients' },
   { to: '/reports', icon: FileSpreadsheet, label: 'Pay Register & Reports' },
 ];
