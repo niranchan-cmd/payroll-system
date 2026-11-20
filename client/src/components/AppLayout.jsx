@@ -4,7 +4,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useClient } from '../context/ClientContext';
 import {
-  LayoutDashboard, Building2, Users, LogOut, ChevronRight,
+  LayoutDashboard, Building2, Users, LogOut, ChevronRight, Shield,
   X, Settings, Play, FileUp, FileSpreadsheet, Lock
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -48,6 +48,16 @@ export default function AppLayout() {
 
         <nav className="sidebar-nav">
           <span className="nav-section-label">Navigation</span>
+
+          {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
+            <NavLink
+              to="/admin"
+              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+            >
+              <Shield className="nav-icon" size={18} />
+              Admin Panel
+            </NavLink>
+          )}
 
           {navItems.map(({ to, icon: Icon, label, exact }) => (
             <NavLink
