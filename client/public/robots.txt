@@ -1,0 +1,28 @@
+# robots.txt for Ploy.pe by NH Associates
+User-agent: *
+Allow: /
+Allow: /sitemap.xml
+Allow: /favicon.svg
+
+# Disallow private application workspace and sensitive client endpoints
+Disallow: /dashboard
+Disallow: /clients
+Disallow: /clients/
+Disallow: /reports
+Disallow: /admin
+Disallow: /api/
+
+# Block aggressive AI scrapers and bot crawlers from private data
+User-agent: GPTBot
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /clients/
+Disallow: /reports/
+
+User-agent: CCBot
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /clients/
+Disallow: /reports/
+
+Sitemap: https://payroll-os-rose.vercel.app/sitemap.xml
