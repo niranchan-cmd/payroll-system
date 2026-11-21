@@ -343,4 +343,3 @@ model IssuedLetter {
   client   Client   @relation(fields: [client_id], references: [id], onDelete: Cascade)
   employee Employee @relation(fields: [employee_id], references: [id], onDelete: Cascade)
 }
-}
