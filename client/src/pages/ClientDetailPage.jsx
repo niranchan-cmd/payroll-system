@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useClient } from '../context/ClientContext';
 import {
-  CheckCircle, XCircle, ChevronRight, Settings, Save, Users, GitBranch, Trash2, AlertTriangle
+  CheckCircle, XCircle, ChevronRight, Settings, Save, Users, GitBranch, Trash2, AlertTriangle, Briefcase
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import DeleteClientModal from '../components/DeleteClientModal';
@@ -105,6 +105,12 @@ export default function ClientDetailPage() {
             data-tooltip={!allReady ? 'Complete setup first' : undefined}
           >
             <Users size={15} /> Employees
+          </button>
+          <button
+            className="btn btn-secondary"
+            onClick={() => navigate(`/clients/${id}/hr`)}
+          >
+            <Briefcase size={15} /> HR Operations
           </button>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import api from '../services/api';
 import { useClient } from '../context/ClientContext';
 import {
@@ -34,10 +34,24 @@ function fmt(n) {
 }
 
 export default function ReportsPage() {
-  const { clients, selectedClient } = useClient();
+  const { clients: ctxClients, selectedClient, fetchClients } = useClient();
+  const [localClients, setLocalClients] = useState([]);
   const [data, setData] = useState({ runs: [], grand_totals: {} });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Load clients list on mount
+  useEffect(() => {
+    if (fetchClients) {
+      fetchClients();
+    } else {
+      api.get('/clients')
+        .then((res) => setLocalClients(res.data?.data || []))
+        .catch(() => {});
+    }
+  }, [fetchClients]);
+
+  const clientList = (ctxClients && ctxClients.length > 0) ? ctxClients : localClients;
 
   // Filter states
   const [clientFilter, setClientFilter] = useState(selectedClient?.id || 'all');
@@ -58,29 +72,41 @@ export default function ReportsPage() {
     }
   }, [selectedClient]);
 
-  const fetchReport = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const params = {
-        clientId: clientFilter,
-        month: monthFilter,
-        year: yearFilter,
-        status: statusFilter,
-        search: searchQuery,
-      };
-      const res = await api.get('/reports/pay-register', { params });
-      setData(res.data.data || { runs: [], grand_totals: {} });
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load pay register report.');
-    } finally {
-      setLoading(false);
-    }
-  }, [clientFilter, monthFilter, yearFilter, statusFilter, searchQuery]);
-
   useEffect(() => {
-    fetchReport();
-  }, [fetchReport]);
+    let isCurrent = true;
+
+    async function loadReport() {
+      setLoading(true);
+      setError('');
+      try {
+        const params = {
+          clientId: clientFilter,
+          month: monthFilter,
+          year: yearFilter,
+          status: statusFilter,
+          search: searchQuery,
+        };
+        const res = await api.get('/reports/pay-register', { params });
+        if (isCurrent) {
+          setData(res.data.data || { runs: [], grand_totals: {} });
+        }
+      } catch (err) {
+        if (isCurrent) {
+          setError(err.response?.data?.message || 'Failed to load pay register report.');
+        }
+      } finally {
+        if (isCurrent) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadReport();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [clientFilter, monthFilter, yearFilter, statusFilter, searchQuery]);
 
   const toggleRun = (runId) => {
     setCollapsedRuns((prev) => ({ ...prev, [runId]: !prev[runId] }));
@@ -179,7 +205,7 @@ export default function ReportsPage() {
               onChange={(e) => setClientFilter(e.target.value)}
             >
               <option value="all">🏢 All Clients</option>
-              {clients?.map((c) => (
+              {clientList.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>

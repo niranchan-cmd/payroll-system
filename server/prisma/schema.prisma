@@ -61,6 +61,14 @@ model Client {
   structures    CTCStructure[]
   employees     Employee[]
   payroll_runs  PayrollRun[]
+
+  // HR module relations (100% tenant-isolated)
+  leave_balances    LeaveBalance[]
+  leave_requests    LeaveRequest[]
+  employee_docs     EmployeeDocument[]
+  asset_assignments AssetAssignment[]
+  company_policies  CompanyPolicy[]
+  issued_letters    IssuedLetter[]
 }
 
 // ─── CTC STRUCTURE ───────────────────────────────────────────────────────────
@@ -120,6 +128,18 @@ model Employee {
   client           Client                  @relation(fields: [client_id], references: [id])
   salary_histories EmployeeSalaryHistory[]
   payroll_entries  PayrollEntry[]
+
+  // Reporting Hierarchy
+  manager_id       String?
+  manager          Employee?               @relation("ReportingManager", fields: [manager_id], references: [id])
+  subordinates     Employee[]              @relation("ReportingManager")
+
+  // HR Relations
+  leave_balances   LeaveBalance[]
+  leave_requests   LeaveRequest[]
+  documents        EmployeeDocument[]
+  assets           AssetAssignment[]
+  issued_letters   IssuedLetter[]
 
   @@unique([client_id, roll_no])
 }
@@ -213,4 +233,114 @@ model Lead {
   status       String   @default("NEW") // "NEW" | "CONTACTED" | "CONVERTED"
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
+}
+
+// ─── HR: LEAVES & ATTENDANCE ──────────────────────────────────────────────────
+
+model LeaveBalance {
+  id               String   @id @default(uuid())
+  client_id        String
+  employee_id      String
+  year             Int      @default(2026)
+  casual_allocated Int      @default(12)
+  casual_used      Int      @default(0)
+  sick_allocated   Int      @default(10)
+  sick_used        Int      @default(0)
+  priv_allocated   Int      @default(15)
+  priv_used        Int      @default(0)
+  unpaid_days      Int      @default(0) // Loss of pay (LOP)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  client   Client   @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+
+  @@unique([client_id, employee_id, year])
+}
+
+model LeaveRequest {
+  id          String    @id @default(uuid())
+  client_id   String
+  employee_id String
+  leave_type  String    // "CASUAL" | "SICK" | "PRIVILEGE" | "UNPAID"
+  start_date  DateTime
+  end_date    DateTime
+  total_days  Decimal   @db.Decimal(5, 1)
+  reason      String
+  status      String    @default("PENDING") // "PENDING" | "APPROVED" | "REJECTED"
+  approved_by String?
+  approved_at DateTime?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  client   Client   @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+}
+
+// ─── HR: DIGITAL ONBOARDING & DOCUMENTS ───────────────────────────────────────
+
+model EmployeeDocument {
+  id                  String    @id @default(uuid())
+  client_id           String
+  employee_id         String
+  doc_type            String    // "PAN" | "AADHAAR" | "BANK_PASSBOOK" | "SIGNED_NDA" | "EXPERIENCE" | "OTHER"
+  doc_name            String
+  file_url            String
+  verification_status String    @default("PENDING") // "PENDING" | "VERIFIED" | "REJECTED"
+  verified_by         String?
+  verified_at         DateTime?
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+
+  client   Client   @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+}
+
+model AssetAssignment {
+  id            String    @id @default(uuid())
+  client_id     String
+  employee_id   String
+  asset_name    String    // e.g. "MacBook Pro 14 M3"
+  asset_tag     String?   // e.g. "AGT-HW-2026-088"
+  serial_number String?
+  status        String    @default("ASSIGNED") // "ASSIGNED" | "RETURNED" | "DAMAGED"
+  assigned_date DateTime  @default(now())
+  returned_date DateTime?
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  client   Client   @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+}
+
+// ─── HR: POLICIES & LETTERHEAD STUDIO ─────────────────────────────────────────
+
+model CompanyPolicy {
+  id         String   @id @default(uuid())
+  client_id  String
+  title      String   // e.g. "PoSH Policy 2026"
+  category   String   // "COMPLIANCE" | "LEAVE" | "REMOTE_WORK" | "GENERAL"
+  file_url   String?
+  summary    String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  client Client @relation(fields: [client_id], references: [id], onDelete: Cascade)
+}
+
+model IssuedLetter {
+  id              String   @id @default(uuid())
+  client_id       String
+  employee_id     String
+  letter_type     String   // "APPOINTMENT" | "CONFIRMATION" | "RELIEVING" | "BONAFIDE"
+  reference_no    String
+  issue_date      DateTime @default(now())
+  signatory_name  String
+  signatory_title String
+  pdf_url         String?
+  created_at      DateTime @default(now())
+
+  client   Client   @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+}
 }

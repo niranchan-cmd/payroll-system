@@ -18,6 +18,7 @@ import PayrollRunDetailPage from './pages/PayrollRunDetailPage';
 import BulkImportPage from './pages/BulkImportPage';
 import ReportsPage from './pages/ReportsPage';
 import AdminPage from './pages/AdminPage';
+import HRCommandCenterPage from './pages/HRCommandCenterPage';
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -56,6 +57,7 @@ export default function App() {
         <Route path="clients/:id/structure/new" element={<CTCStructureFormPage />} />
         <Route path="clients/:id/employees" element={<EmployeesPage />} />
         <Route path="clients/:id/employees/new" element={<AddEmployeePage />} />
+        <Route path="clients/:id/hr" element={<HRCommandCenterPage />} />
         <Route path="clients/:id/employees/import" element={<BulkImportPage />} />
         <Route path="clients/:id/payroll" element={<PayrollPage />} />
         <Route path="clients/:id/payroll/run" element={<RunPayrollPage />} />

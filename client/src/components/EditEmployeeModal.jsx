@@ -4,28 +4,28 @@ import { X, Save, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function EditEmployeeModal({ employee, isOpen, onClose, onUpdated }) {
-  if (!isOpen || !employee) return null;
-
-  const currentSalary = employee.salary_histories?.[0];
+  const currentSalary = employee?.salary_histories?.[0];
   const initialCtc = currentSalary ? currentSalary.annual_ctc : '';
-  const initialStartDate = employee.start_date
+  const initialStartDate = employee?.start_date
     ? new Date(employee.start_date).toISOString().split('T')[0]
     : '';
 
   const [form, setForm] = useState({
-    name: employee.name || '',
-    roll_no: employee.roll_no || '',
-    designation: employee.designation || '',
-    department: employee.department || '',
-    email: employee.email || '',
+    name: employee?.name || '',
+    roll_no: employee?.roll_no || '',
+    designation: employee?.designation || '',
+    department: employee?.department || '',
+    email: employee?.email || '',
     start_date: initialStartDate,
     annual_ctc: initialCtc,
-    tax_regime: employee.tax_regime || 'NEW',
-    status: employee.status || 'ACTIVE',
+    tax_regime: employee?.tax_regime || 'NEW',
+    status: employee?.status || 'ACTIVE',
   });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  if (!isOpen || !employee) return null;
 
   async function handleSubmit(e) {
     e.preventDefault();

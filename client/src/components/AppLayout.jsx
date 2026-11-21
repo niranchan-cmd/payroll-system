@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useClient } from '../context/ClientContext';
 import {
   LayoutDashboard, Building2, Users, LogOut, ChevronRight, Shield,
-  X, Settings, Play, FileUp, FileSpreadsheet, Lock, Menu
+  X, Settings, Play, FileUp, FileSpreadsheet, Lock, Menu, Briefcase
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ThemeSelector from './ThemeSelector';
@@ -130,6 +130,14 @@ export default function AppLayout() {
               >
                 <Users className="nav-icon" size={18} />
                 Employees
+              </NavLink>
+              <NavLink
+                to={`/clients/${selectedClient.id}/hr`}
+                onClick={handleNavClick}
+                className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+              >
+                <Briefcase className="nav-icon" size={18} />
+                HR Operations
               </NavLink>
               <NavLink
                 to={`/clients/${selectedClient.id}/payroll`}

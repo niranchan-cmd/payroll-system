@@ -9,14 +9,15 @@ const {
   deleteClient,
 } = require('../controllers/client.controller');
 const { verifyToken, requireRole } = require('../middlewares/auth.middleware');
+const { validate, clientValidators } = require('../middlewares/validation.middleware');
 
 router.use(verifyToken);
 
 router.get('/', listClients);
-router.post('/', requireRole('SUPER_ADMIN', 'ADMIN'), createClient);
-router.get('/:id', getClient);
-router.patch('/:id', requireRole('SUPER_ADMIN', 'ADMIN'), updateClient);
-router.delete('/:id', requireRole('SUPER_ADMIN', 'ADMIN'), deleteClient);
-router.get('/:id/readiness', getClientReadiness);
+router.post('/', requireRole('SUPER_ADMIN', 'ADMIN'), validate(clientValidators.createClient), createClient);
+router.get('/:id', validate(clientValidators.getClient), getClient);
+router.patch('/:id', requireRole('SUPER_ADMIN', 'ADMIN'), validate(clientValidators.updateClient), updateClient);
+router.delete('/:id', requireRole('SUPER_ADMIN', 'ADMIN'), validate(clientValidators.deleteClient), deleteClient);
+router.get('/:id/readiness', validate(clientValidators.getClientReadiness), getClientReadiness);
 
 module.exports = router;

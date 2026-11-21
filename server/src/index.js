@@ -19,6 +19,7 @@ const importRoutes = require('./routes/import.routes');
 const reportRoutes = require('./routes/report.routes');
 const adminRoutes = require('./routes/admin.routes');
 const leadRoutes = require('./routes/lead.routes');
+const hrRoutes = require('./routes/hr.routes');
 const { errorResponse } = require('./utils/response.utils');
 
 const app = express();
@@ -28,10 +29,17 @@ const PORT = process.env.PORT || 5000;
 
 app.use(helmet());
 
+// Strict origin whitelist (no wildcards or suffix matching)
+const rawClientUrl = process.env.CLIENT_URL;
+const envOrigins = rawClientUrl
+  ? rawClientUrl.split(',').map((u) => u.trim().replace(/\/+$/, ''))
+  : [];
+
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
-  process.env.CLIENT_URL,
+  'https://payroll-os-rose.vercel.app',
+  ...envOrigins,
 ].filter(Boolean);
 
 app.use(
@@ -39,10 +47,7 @@ app.use(
     origin: (origin, callback) => {
       // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
       if (!origin) return callback(null, true);
-      if (
-        allowedOrigins.includes(origin) ||
-        origin.endsWith('.vercel.app')
-      ) {
+      if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
       return callback(new Error('Not allowed by CORS'), false);
@@ -81,6 +86,9 @@ app.use('/api/v1/clients/:clientId/payroll', payrollRoutes);
 
 // Bulk Import: /api/v1/clients/:clientId/employees/import
 app.use('/api/v1/clients/:clientId/employees/import', importRoutes);
+
+// HR Command Center: /api/v1/clients/:clientId/hr
+app.use('/api/v1/clients/:clientId/hr', hrRoutes);
 
 // Reports: /api/v1/reports
 app.use('/api/v1/reports', reportRoutes);
@@ -126,7 +134,7 @@ app.use((err, req, res, next) => {
 
 // ─── START ────────────────────────────────────────────────────────────────────
 
-if (process.env.VERCEL !== '1') {
+if (process.env.VERCEL !== '1' && process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log(`\n🚀 Payroll Server running on http://localhost:${PORT}`);
     console.log(`   Environment : ${process.env.NODE_ENV || 'development'}`);

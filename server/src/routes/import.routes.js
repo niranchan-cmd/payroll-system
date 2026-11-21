@@ -3,6 +3,7 @@ const multer = require('multer');
 const router = express.Router({ mergeParams: true });
 const { downloadTemplate, validateImport, confirmImport } = require('../controllers/import.controller');
 const { verifyToken, requireRole } = require('../middlewares/auth.middleware');
+const { validate, importValidators } = require('../middlewares/validation.middleware');
 
 // Store upload in memory (no disk) — buffer only
 const upload = multer({
@@ -25,12 +26,12 @@ const upload = multer({
 router.use(verifyToken);
 
 // GET  /clients/:clientId/employees/import/template — download xlsx template
-router.get('/template', downloadTemplate);
+router.get('/template', validate(importValidators.template), downloadTemplate);
 
 // POST /clients/:clientId/employees/import/validate — validate xlsx, return error report
-router.post('/validate', requireRole('SUPER_ADMIN', 'ADMIN'), upload.single('file'), validateImport);
+router.post('/validate', requireRole('SUPER_ADMIN', 'ADMIN'), upload.single('file'), validate(importValidators.validateImport), validateImport);
 
 // POST /clients/:clientId/employees/import/confirm  — bulk create validated rows
-router.post('/confirm', requireRole('SUPER_ADMIN', 'ADMIN'), confirmImport);
+router.post('/confirm', requireRole('SUPER_ADMIN', 'ADMIN'), validate(importValidators.confirmImport), confirmImport);
 
 module.exports = router;

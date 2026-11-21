@@ -29,12 +29,24 @@ function clearAttempts(email) {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const prisma = require('../utils/prisma');
 const { signAccessToken, signRefreshToken, verifyRefreshToken } = require('../utils/jwt.utils');
 const { successResponse, errorResponse } = require('../utils/response.utils');
 
 const REFRESH_TOKEN_EXPIRES_DAYS = 7;
+
+function getRefreshCookieOptions() {
+  const isProduction = process.env.NODE_ENV === 'production';
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    path: '/api/v1/auth',
+    maxAge: REFRESH_TOKEN_EXPIRES_DAYS * 24 * 60 * 60 * 1000,
+  };
+}
 
 /**
  * POST /api/v1/auth/login
@@ -100,7 +112,7 @@ async function login(req, res) {
 
   const payload = { id: user.id, email: user.email, role: user.role };
   const accessToken = signAccessToken(payload);
-  const refreshToken = signRefreshToken(payload);
+  const refreshToken = signRefreshToken({ ...payload, jti: crypto.randomUUID() });
 
   // Store refresh token in DB
   const expiresAt = new Date();
@@ -110,13 +122,8 @@ async function login(req, res) {
     data: { token: refreshToken, user_id: user.id, expires_at: expiresAt },
   });
 
-  // Set refresh token as httpOnly cookie
-  res.cookie('refreshToken', refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    maxAge: REFRESH_TOKEN_EXPIRES_DAYS * 24 * 60 * 60 * 1000,
-  });
+  // Set refresh token as httpOnly cookie with strict path
+  res.cookie('refreshToken', refreshToken, getRefreshCookieOptions());
 
   return successResponse(
     res,
@@ -130,6 +137,7 @@ async function login(req, res) {
 
 /**
  * POST /api/v1/auth/refresh
+ * Implements Refresh Token Rotation (RTR)
  */
 async function refresh(req, res) {
   const token = req.cookies?.refreshToken;
@@ -141,24 +149,49 @@ async function refresh(req, res) {
   try {
     decoded = verifyRefreshToken(token);
   } catch {
+    res.clearCookie('refreshToken', { ...getRefreshCookieOptions(), maxAge: undefined });
     return errorResponse(res, 'Invalid or expired refresh token. Please log in again.', 401);
   }
 
-  // Check DB
+  // Check DB for existing token
   const storedToken = await prisma.refreshToken.findUnique({ where: { token } });
   if (!storedToken || storedToken.expires_at < new Date()) {
+    res.clearCookie('refreshToken', { ...getRefreshCookieOptions(), maxAge: undefined });
     return errorResponse(res, 'Session expired. Please log in again.', 401);
   }
 
   const user = await prisma.user.findUnique({ where: { id: decoded.id } });
   if (!user || !user.is_active) {
-    return errorResponse(res, 'User not found.', 401);
+    res.clearCookie('refreshToken', { ...getRefreshCookieOptions(), maxAge: undefined });
+    return errorResponse(res, 'User not found or inactive.', 401);
   }
 
   const payload = { id: user.id, email: user.email, role: user.role };
   const newAccessToken = signAccessToken(payload);
+  const newRefreshToken = signRefreshToken({ ...payload, jti: crypto.randomUUID() });
 
-  return successResponse(res, { accessToken: newAccessToken }, 'Token refreshed.');
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + REFRESH_TOKEN_EXPIRES_DAYS);
+
+  // Refresh Token Rotation: Delete old token and insert new rotated token atomically
+  await prisma.$transaction([
+    prisma.refreshToken.delete({ where: { id: storedToken.id } }),
+    prisma.refreshToken.create({
+      data: { token: newRefreshToken, user_id: user.id, expires_at: expiresAt },
+    }),
+  ]);
+
+  // Set new rotated refresh token in cookie
+  res.cookie('refreshToken', newRefreshToken, getRefreshCookieOptions());
+
+  return successResponse(
+    res,
+    {
+      accessToken: newAccessToken,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    },
+    'Token refreshed.'
+  );
 }
 
 /**
@@ -168,8 +201,17 @@ async function logout(req, res) {
   const token = req.cookies?.refreshToken;
   if (token) {
     await prisma.refreshToken.deleteMany({ where: { token } }).catch(() => {});
-    res.clearCookie('refreshToken');
   }
+
+  // Explicitly clear cookie using identical path, sameSite, and secure attributes
+  const isProduction = process.env.NODE_ENV === 'production';
+  res.clearCookie('refreshToken', {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    path: '/api/v1/auth',
+  });
+
   return successResponse(res, null, 'Logged out successfully.');
 }
 
@@ -185,48 +227,8 @@ async function me(req, res) {
 }
 
 /**
- * POST /api/v1/auth/reset-password
- * Self-service password reset for registered users
- */
-async function resetPassword(req, res) {
-  const { email, newPassword, confirmPassword } = req.body;
-
-  if (!email || !newPassword) {
-    return errorResponse(res, 'Email and new password are required.', 400);
-  }
-
-  if (confirmPassword && newPassword !== confirmPassword) {
-    return errorResponse(res, 'Passwords do not match.', 400);
-  }
-
-  if (newPassword.length < 6) {
-    return errorResponse(res, 'Password must be at least 6 characters long.', 400);
-  }
-
-  const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
-  if (!user || !user.is_active) {
-    return errorResponse(res, 'No active account found with this email address.', 404);
-  }
-
-  const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-  // Update password and invalidate old refresh tokens
-  await prisma.$transaction([
-    prisma.user.update({
-      where: { id: user.id },
-      data: { password: hashedPassword },
-    }),
-    prisma.refreshToken.deleteMany({
-      where: { user_id: user.id },
-    }),
-  ]);
-
-  return successResponse(res, { email: user.email }, 'Password reset successfully. You can now log in with your new password.');
-}
-
-/**
  * POST /api/v1/auth/change-password
- * Authenticated password update
+ * Authenticated password update with session revocation
  */
 async function changePassword(req, res) {
   const { currentPassword, newPassword } = req.body;
@@ -251,12 +253,18 @@ async function changePassword(req, res) {
 
   const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { password: hashedPassword },
-  });
+  // Update password and revoke all existing refresh tokens
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword },
+    }),
+    prisma.refreshToken.deleteMany({
+      where: { user_id: user.id },
+    }),
+  ]);
 
-  return successResponse(res, null, 'Password changed successfully.');
+  return successResponse(res, null, 'Password changed successfully. Please log in again with your new credentials.');
 }
 
-module.exports = { login, refresh, logout, me, resetPassword, changePassword };
+module.exports = { login, refresh, logout, me, changePassword };

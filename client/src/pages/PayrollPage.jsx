@@ -1,40 +1,53 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useClient } from '../context/ClientContext';
 import api from '../services/api';
 import {
-  Play, CheckCircle, Clock, Download, ChevronRight, Plus, Calendar, Users, DollarSign
+  Play, CheckCircle, Clock, Download, ChevronRight, Plus, Calendar
 } from 'lucide-react';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-function fmt(n) {
-  return Number(n).toLocaleString('en-IN', { minimumFractionDigits: 0 });
-}
-
 export default function PayrollPage() {
+  const { id: routeClientId } = useParams();
   const navigate = useNavigate();
   const { selectedClient } = useClient();
+  const clientId = routeClientId || selectedClient?.id;
+
   const [runs, setRuns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchRuns = useCallback(async () => {
-    if (!selectedClient) return;
-    try {
-      setLoading(true);
-      const res = await api.get(`/clients/${selectedClient.id}/payroll`);
-      setRuns(res.data.data || []);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load payroll runs');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    let isCurrent = true;
+
+    async function loadRuns() {
+      if (!clientId) return;
+      try {
+        setLoading(true);
+        const res = await api.get(`/clients/${clientId}/payroll`);
+        if (isCurrent) {
+          setRuns(res.data.data || []);
+        }
+      } catch (err) {
+        if (isCurrent) {
+          setError(err.response?.data?.message || 'Failed to load payroll runs');
+        }
+      } finally {
+        if (isCurrent) {
+          setLoading(false);
+        }
+      }
     }
-  }, [selectedClient]);
 
-  useEffect(() => { fetchRuns(); }, [fetchRuns]);
+    loadRuns();
 
-  if (!selectedClient) {
+    return () => {
+      isCurrent = false;
+    };
+  }, [clientId]);
+
+  if (!clientId && !selectedClient) {
     return (
       <div className="empty-state">
         <div className="empty-icon"><Calendar size={28} /></div>
@@ -44,14 +57,16 @@ export default function PayrollPage() {
     );
   }
 
+  const clientDisplayName = selectedClient?.name || 'Client';
+
   return (
     <div>
       <div className="page-header">
         <div className="page-header-left">
           <h1 className="page-title">Payroll Runs</h1>
-          <p className="page-subtitle">{selectedClient.name} — Monthly payroll history</p>
+          <p className="page-subtitle">{clientDisplayName} — Monthly payroll history</p>
         </div>
-        <button className="btn btn-primary" onClick={() => navigate(`/clients/${selectedClient.id}/payroll/run`)}>
+        <button className="btn btn-primary" onClick={() => navigate(`/clients/${clientId}/payroll/run`)}>
           <Plus size={16} /> Run Payroll
         </button>
       </div>
@@ -67,7 +82,7 @@ export default function PayrollPage() {
           <div className="empty-icon"><Play size={28} /></div>
           <div className="empty-title">No payroll runs yet</div>
           <p className="empty-desc">Run your first payroll to compute net pay, PF, and ESI for all active employees.</p>
-          <button className="btn btn-primary" onClick={() => navigate(`/clients/${selectedClient.id}/payroll/run`)}>
+          <button className="btn btn-primary" onClick={() => navigate(`/clients/${clientId}/payroll/run`)}>
             <Plus size={16} /> Run First Payroll
           </button>
         </div>
@@ -88,7 +103,7 @@ export default function PayrollPage() {
                 <tr
                   key={run.id}
                   style={{ cursor: 'pointer', transition: 'background 150ms' }}
-                  onClick={() => navigate(`/clients/${selectedClient.id}/payroll/${run.id}`)}
+                  onClick={() => navigate(`/clients/${clientId}/payroll/${run.id}`)}
                   onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
                   onMouseLeave={(e) => e.currentTarget.style.background = ''}
                 >
@@ -110,7 +125,7 @@ export default function PayrollPage() {
                   <td style={{ padding: '16px 20px', textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
                     <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                       <a
-                        href={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api/v1/clients/${selectedClient.id}/payroll/${run.id}/export`}
+                        href={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'}/api/v1/clients/${clientId}/payroll/${run.id}/export`}
                         className="btn btn-secondary btn-sm"
                         download
                         onClick={(e) => e.stopPropagation()}
@@ -119,7 +134,7 @@ export default function PayrollPage() {
                       </a>
                       <button
                         className="btn btn-ghost btn-sm"
-                        onClick={(e) => { e.stopPropagation(); navigate(`/clients/${selectedClient.id}/payroll/${run.id}`); }}
+                        onClick={(e) => { e.stopPropagation(); navigate(`/clients/${clientId}/payroll/${run.id}`); }}
                       >
                         <ChevronRight size={14} />
                       </button>

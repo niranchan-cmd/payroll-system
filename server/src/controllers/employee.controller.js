@@ -42,11 +42,12 @@ async function listEmployees(req, res) {
 
 async function getEmployee(req, res) {
   const { id } = req.params;
+  const clientIdContext = req.query.clientId || req.headers['x-client-id'];
 
   const employee = await prisma.employee.findUnique({
     where: { id },
     include: {
-      client: { select: { id: true, name: true } },
+      client: { select: { id: true, name: true, is_active: true } },
       salary_histories: {
         include: {
           structure_version: { select: { id: true, version_name: true, effective_from: true } },
@@ -57,9 +58,26 @@ async function getEmployee(req, res) {
     },
   });
 
-  if (!employee) return errorResponse(res, 'Employee not found.', 404);
+  // Verify employee exists and belongs to an active client
+  if (!employee || !employee.client || !employee.client.is_active) {
+    return errorResponse(res, 'Employee not found.', 404);
+  }
 
-  // Calculate current salary breakdown
+  // Enforce tenant boundary scoping if client context is specified
+  if (clientIdContext && employee.client_id !== clientIdContext) {
+    return errorResponse(res, 'Employee not found.', 404);
+  }
+
+  // Low-privilege VIEWER accounts: Redact sensitive compensation details
+  if (req.user?.role === 'VIEWER') {
+    const sanitizedEmployee = {
+      ...employee,
+      salary_histories: [],
+    };
+    return successResponse(res, { employee: sanitizedEmployee, salaryBreakdown: null });
+  }
+
+  // Calculate current salary breakdown for authorized administrators
   const currentHistory = employee.salary_histories.find((h) => !h.effective_to);
   let salaryBreakdown = null;
 

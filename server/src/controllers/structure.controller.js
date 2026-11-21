@@ -19,11 +19,26 @@ async function listStructures(req, res) {
 
 async function getStructure(req, res) {
   const { id } = req.params;
+  const clientIdContext = req.query.clientId || req.headers['x-client-id'];
+
   const structure = await prisma.cTCStructure.findUnique({
     where: { id },
-    include: { components: { orderBy: { display_order: 'asc' } } },
+    include: {
+      client: { select: { id: true, name: true, is_active: true } },
+      components: { orderBy: { display_order: 'asc' } },
+    },
   });
-  if (!structure) return errorResponse(res, 'Structure not found.', 404);
+
+  // Verify structure exists and belongs to an active client
+  if (!structure || !structure.client || !structure.client.is_active) {
+    return errorResponse(res, 'Structure not found.', 404);
+  }
+
+  // Enforce tenant boundary scoping if client context is specified
+  if (clientIdContext && structure.client_id !== clientIdContext) {
+    return errorResponse(res, 'Structure not found.', 404);
+  }
+
   return successResponse(res, structure);
 }
 
