@@ -9,6 +9,7 @@ import {
   ChevronRight, PhoneCall, Sparkles, Send, ShieldAlert, Cpu,
   Laptop, Briefcase, Menu, X
 } from 'lucide-react';
+import BrandLogo from '../components/BrandLogo';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -76,6 +77,7 @@ export default function LandingPage() {
 
   // ── IntersectionObserver for Smooth In-View Element Reveals ───────────────
   useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return;
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -190,35 +192,8 @@ export default function LandingPage() {
         <div style={{ maxWidth: 1240, margin: '0 auto', padding: '0 24px', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           
           {/* Brand Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: 10,
-                backgroundColor: '#023326',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#10B981',
-                fontWeight: 900,
-                fontSize: 18,
-                boxShadow: '0 4px 12px rgba(2, 51, 38, 0.2)',
-              }}
-            >
-              P
-            </div>
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.03em', color: '#0F172A', display: 'flex', alignItems: 'center', gap: 6 }}>
-                Ploy.pe
-                <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 6, backgroundColor: '#E6F4EA', color: '#023326', fontWeight: 800 }}>
-                  HR & PAYROLL
-                </span>
-              </div>
-              <div style={{ fontSize: 10, color: '#64748B', fontWeight: 600, letterSpacing: '0.04em' }}>
-                by NH Associates
-              </div>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <BrandLogo size={36} withBadge={true} badgeText="HR & PAYROLL" />
           </div>
 
           {/* Nav Links (Clean, No-Wrap, Well-Aligned - Hidden on Mobile/Tablet) */}
@@ -1955,14 +1930,8 @@ export default function LandingPage() {
       <footer style={{ padding: '64px 24px', backgroundColor: '#FFFFFF', borderTop: '1px solid #F1F5F9' }}>
         <div style={{ maxWidth: 1240, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 24 }}>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: '#023326', color: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900 }}>
-              P
-            </div>
-            <div>
-              <div style={{ fontSize: 16, fontWeight: 900, color: '#0F172A' }}>Ploy.pe</div>
-              <div style={{ fontSize: 11, color: '#64748B' }}>A product of NH Associates · Chartered Accountants</div>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <BrandLogo size={32} withSub={true} />
           </div>
 
           <div style={{ fontSize: 13, color: '#64748B' }}>

@@ -5,6 +5,7 @@ import {
   LayoutDashboard, Building2, Users, FileSpreadsheet, Settings,
   Shield, Play, Layers, FileUp, ArrowLeft, X, LogOut, Lock
 } from 'lucide-react';
+import BrandLogo from './BrandLogo';
 
 export default function Sidebar({ isOpen, onClose, onOpenChangePassword }) {
   const { user, logout } = useAuth();
@@ -51,12 +52,8 @@ export default function Sidebar({ isOpen, onClose, onOpenChangePassword }) {
     <>
       <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
         {/* Brand Header */}
-        <div className="sidebar-logo">
-          <div className="sidebar-logo-icon">NH</div>
-          <div className="sidebar-logo-text">
-            <span className="sidebar-logo-title">Ploye.pe</span>
-            <span className="sidebar-logo-sub">by NH Associates</span>
-          </div>
+        <div className="sidebar-logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px' }}>
+          <BrandLogo size={30} />
           {isOpen && (
             <button className="mobile-close-btn" onClick={onClose} aria-label="Close menu">
               <X size={18} />

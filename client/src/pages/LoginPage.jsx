@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { Eye, EyeOff, LogIn, AlertTriangle, ShieldAlert } from 'lucide-react';
 import ThemeSelector from '../components/ThemeSelector';
 import ResetPasswordModal from '../components/ResetPasswordModal';
+import BrandLogo from '../components/BrandLogo';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -95,51 +96,16 @@ export default function LoginPage() {
       />
 
       <div style={{ width: '100%', maxWidth: 420, position: 'relative' }}>
-        {/* Logo */}
+        {/* Official Brand Logo */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 14,
-            marginBottom: 40,
+            marginBottom: 36,
             justifyContent: 'center',
           }}
         >
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              background: 'var(--accent)',
-              borderRadius: 14,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 18,
-              fontWeight: 900,
-              color: '#fff',
-              fontFamily: 'var(--font-heading)',
-              boxShadow: '0 4px 20px rgba(79,110,247,0.4)',
-              letterSpacing: '-0.02em',
-            }}
-          >
-            NH
-          </div>
-          <div>
-            <div
-              style={{
-                fontSize: 22,
-                fontWeight: 800,
-                fontFamily: 'var(--font-heading)',
-                color: 'var(--text-primary)',
-                letterSpacing: '-0.02em',
-              }}
-            >
-              Ploye.pe
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>
-              by NH Associates
-            </div>
-          </div>
+          <BrandLogo size={44} />
         </div>
 
         {/* Card */}

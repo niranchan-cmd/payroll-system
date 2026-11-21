@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import toast from 'react-hot-toast';
@@ -28,9 +29,17 @@ export default function AdminPage() {
   });
   const [creatingUser, setCreatingUser] = useState(false);
 
+  const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
+
   useEffect(() => {
-    loadAllData();
-  }, []);
+    if (isAdmin) {
+      loadAllData();
+    }
+  }, [isAdmin]);
+
+  if (user && !isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   async function loadAllData() {
     setLoading(true);
@@ -42,11 +51,11 @@ export default function AdminPage() {
         api.get('/admin/audit-logs'),
         api.get('/leads/admin'),
       ]);
-      setStats(statsRes.data.data);
-      setUsersList(usersRes.data.data);
-      setClientsList(clientsRes.data.data);
-      setAuditLogs(auditRes.data.data);
-      setLeadsList(leadsRes.data.data);
+      setStats(statsRes.data?.data || {});
+      setUsersList(Array.isArray(usersRes.data?.data) ? usersRes.data.data : []);
+      setClientsList(Array.isArray(clientsRes.data?.data) ? clientsRes.data.data : []);
+      setAuditLogs(Array.isArray(auditRes.data?.data) ? auditRes.data.data : []);
+      setLeadsList(Array.isArray(leadsRes.data?.data) ? leadsRes.data.data : []);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to load admin data.');
     } finally {
@@ -319,7 +328,7 @@ export default function AdminPage() {
             cursor: 'pointer',
           }}
         >
-          Inbound Leads ({leadsList.filter(l => l.status === 'NEW').length} New)
+          Inbound Leads ({(Array.isArray(leadsList) ? leadsList : []).filter(l => l.status === 'NEW').length} New)
         </button>
       </div>
 
@@ -342,7 +351,7 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {clientsList.map((c) => (
+                {(Array.isArray(clientsList) ? clientsList : []).map((c) => (
                   <tr key={c.id} style={{ borderBottom: '1px solid var(--border-subtle)', fontSize: 13 }}>
                     <td style={{ padding: '12px 16px', fontWeight: 600 }}>
                       <a href={`/clients/${c.id}`} style={{ color: 'var(--accent-light)', textDecoration: 'none' }}>
@@ -430,7 +439,7 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {usersList.map((u) => (
+                {(Array.isArray(usersList) ? usersList : []).map((u) => (
                   <tr key={u.id} style={{ borderBottom: '1px solid var(--border-subtle)', fontSize: 13 }}>
                     <td style={{ padding: '12px 16px' }}>
                       <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{u.name}</div>
@@ -496,7 +505,7 @@ export default function AdminPage() {
             <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No audit records found.</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {auditLogs.map((log) => (
+              {(Array.isArray(auditLogs) ? auditLogs : []).map((log) => (
                 <div
                   key={log.id}
                   style={{
@@ -569,7 +578,7 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {leadsList.length === 0 ? (
+                {!Array.isArray(leadsList) || leadsList.length === 0 ? (
                   <tr>
                     <td colSpan="7" style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
                       No incoming leads yet.

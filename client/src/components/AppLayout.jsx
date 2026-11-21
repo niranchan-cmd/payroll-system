@@ -10,6 +10,7 @@ import {
 import toast from 'react-hot-toast';
 import ThemeSelector from './ThemeSelector';
 import ChangePasswordModal from './ChangePasswordModal';
+import BrandLogo from './BrandLogo';
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', exact: true },
@@ -51,14 +52,8 @@ export default function AppLayout() {
 
       {/* ── Sidebar ──────────────────────────────────────── */}
       <aside className={`sidebar ${mobileSidebarOpen ? 'open' : ''}`}>
-        <div className="sidebar-logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div className="sidebar-logo-icon" style={{ backgroundColor: "#023326", color: "#10B981", fontWeight: 900 }}>P</div>
-            <div className="sidebar-logo-text">
-              <span className="sidebar-logo-title">Ploy.pe</span>
-              <span className="sidebar-logo-sub">by NH Associates</span>
-            </div>
-          </div>
+        <div className="sidebar-logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px' }}>
+          <BrandLogo size={32} />
           <button
             className="mobile-close-sidebar-btn"
             onClick={() => setMobileSidebarOpen(false)}

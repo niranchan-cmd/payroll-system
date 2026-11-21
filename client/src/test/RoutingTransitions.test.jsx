@@ -51,7 +51,7 @@ describe('Feature 16: Multi-Page Routing Transitions & Dedicated Pages', () => {
     vi.clearAllMocks();
     api.get.mockImplementation((url) => {
       if (url === '/clients') {
-        return Promise.resolve({ data: { data: [{ id: 'c1', name: 'Client One' }] } });
+        return Promise.resolve({ data: { data: [{ id: 'c1', name: 'Client One', state: 'Delhi' }] } });
       }
       if (url === '/dashboard/stats') {
         return Promise.resolve({ data: { data: { clients: 1, employees: 5, payrollRuns: 2 } } });
@@ -59,68 +59,76 @@ describe('Feature 16: Multi-Page Routing Transitions & Dedicated Pages', () => {
       if (url === '/reports/pay-register') {
         return Promise.resolve({ data: { data: { runs: [], grand_totals: {} } } });
       }
+      if (url === '/admin/clients-summary') {
+        return Promise.resolve({ data: { data: [{ id: 'c1', name: 'Client One', is_active: true, employees_count: 5 }] } });
+      }
+      if (url === '/admin/users') {
+        return Promise.resolve({ data: { data: [{ id: 'u1', name: 'Admin', email: 'admin@ploy.pe', role: 'ADMIN' }] } });
+      }
+      if (url === '/admin/audit-logs') {
+        return Promise.resolve({ data: { data: [] } });
+      }
+      if (url === '/leads/admin') {
+        return Promise.resolve({ data: { data: [] } });
+      }
       if (url.includes('/employees')) {
         return Promise.resolve({ data: { data: [] } });
       }
       if (url.includes('/payroll')) {
         return Promise.resolve({ data: { data: [] } });
       }
-      return Promise.resolve({ data: { data: {} } });
+      return Promise.resolve({ data: { data: [] } });
     });
   });
 
-  it('redirects root "/" to canonical "/dashboard"', async () => {
+  it('renders landing page at root "/"', async () => {
     renderAppWithRoute('/');
     await waitFor(() => {
-      expect(screen.getByText(/Dashboard/i)).toBeInTheDocument();
+      expect(screen.getByText(/Request Callback/i)).toBeInTheDocument();
+      expect(screen.getByText(/Our Models/i)).toBeInTheDocument();
     });
   });
 
-  it('navigates directly to dedicated /employees directory', async () => {
-    renderAppWithRoute('/employees');
+  it('navigates directly to dedicated /dashboard', async () => {
+    renderAppWithRoute('/dashboard');
     await waitFor(() => {
-      expect(screen.getByText('Global Employees Directory')).toBeInTheDocument();
-      expect(screen.getByText(/Search, filter, and manage employees across all client organizations/i)).toBeInTheDocument();
+      expect(screen.getByText(/Corporate Payroll Command Center/i)).toBeInTheDocument();
     });
   });
 
-  it('navigates directly to dedicated /payroll hub', async () => {
-    renderAppWithRoute('/payroll');
+  it('navigates directly to dedicated /reports page', async () => {
+    renderAppWithRoute('/reports');
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Payroll Hub' })).toBeInTheDocument();
-      expect(screen.getByText(/Cross-client payroll processing center/i)).toBeInTheDocument();
+      expect(screen.getByText('Pay Register & Salary Reports')).toBeInTheDocument();
     });
   });
 
-  it('navigates directly to dedicated /settings page', async () => {
-    renderAppWithRoute('/settings');
+  it('navigates directly to dedicated /clients directory', async () => {
+    renderAppWithRoute('/clients');
     await waitFor(() => {
-      expect(screen.getByText('User Account Settings')).toBeInTheDocument();
-      expect(screen.getByText('Security & Password')).toBeInTheDocument();
-      expect(screen.getByText('Visual Appearance & Palette')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Clients' })).toBeInTheDocument();
     });
   });
 
-  it('navigates to /admin placeholder when user has ADMIN role', async () => {
+  it('navigates to /admin when user has ADMIN role', async () => {
     renderAppWithRoute('/admin', 'ADMIN');
     await waitFor(() => {
-      expect(screen.getByText('Administration Console')).toBeInTheDocument();
-      expect(screen.getByText('Statutory Limits & Settings')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Admin Panel' })).toBeInTheDocument();
+      expect(screen.getByText('Client Organizations Overview')).toBeInTheDocument();
     });
   });
 
-  it('blocks non-admin users from /admin and bounces to /dashboard', async () => {
+  it('blocks non-admin users from accessing /admin', async () => {
     renderAppWithRoute('/admin', 'VIEWER');
     await waitFor(() => {
-      expect(screen.queryByText('Administration Console')).not.toBeInTheDocument();
-      expect(screen.getByText('Dashboard')).toBeInTheDocument();
+      expect(screen.getByText(/Corporate Payroll Command Center/i)).toBeInTheDocument();
     });
   });
 
-  it('redirects unknown route to /dashboard', async () => {
+  it('redirects unknown route to root "/"', async () => {
     renderAppWithRoute('/unknown/random/path');
     await waitFor(() => {
-      expect(screen.getByText('Dashboard')).toBeInTheDocument();
+      expect(screen.getByText(/Request Callback/i)).toBeInTheDocument();
     });
   });
 });
