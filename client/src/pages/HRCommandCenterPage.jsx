@@ -1,24 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useClient } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
 import hrService from '../services/hr.service';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import { printElement } from '../utils/printHtml';
 import {
   Calendar, Users, FileText, CheckCircle2, XCircle, Clock,
   ShieldCheck, AlertCircle, Plus, Search, Printer, Download,
   Laptop, Briefcase, FileCheck, Building, ChevronRight, X, UserPlus,
-  Send, Award
+  Send, Award, Edit3, Eye, Check, Paperclip, Filter, RefreshCw
 } from 'lucide-react';
 
 export default function HRCommandCenterPage() {
   const { id: clientId } = useParams();
-  const { selectedClient } = useClient();
+  const { selectedClient, syncClientFromId } = useClient();
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Active Tab: 'leaves' | 'onboarding' | 'directory' | 'letters'
+  // Active Tab: 'leaves' | 'assets' | 'directory' | 'letters'
   const [activeTab, setActiveTab] = useState('leaves');
 
   // Loading States
@@ -29,7 +30,6 @@ export default function HRCommandCenterPage() {
   const [overview, setOverview] = useState({ metrics: {}, recentLeaves: [], recentDocs: [] });
   const [leaveBalances, setLeaveBalances] = useState([]);
   const [leaveRequests, setLeaveRequests] = useState([]);
-  const [documents, setDocuments] = useState([]);
   const [assets, setAssets] = useState([]);
   const [hierarchyData, setHierarchyData] = useState({ employees: [], departments: [] });
   const [policies, setPolicies] = useState([]);
@@ -39,14 +39,17 @@ export default function HRCommandCenterPage() {
   // Filter / Search States
   const [employeeSearch, setEmployeeSearch] = useState('');
   const [selectedDeptFilter, setSelectedDeptFilter] = useState('ALL');
+  const [assetFilter, setAssetFilter] = useState('ALL'); // 'ALL' | 'ASSIGNED' | 'RETURNED'
 
   // Modals
   const [showLeaveModal, setShowLeaveModal] = useState(false);
-  const [showDocModal, setShowDocModal] = useState(false);
   const [showAssetModal, setShowAssetModal] = useState(false);
   const [showLetterModal, setShowLetterModal] = useState(false);
   const [showPolicyModal, setShowPolicyModal] = useState(false);
   const [showManagerModal, setShowManagerModal] = useState(false);
+
+  // Print ref for Letterhead Studio
+  const letterPrintRef = useRef(null);
 
   // Form States
   const [leaveForm, setLeaveForm] = useState({
@@ -58,12 +61,6 @@ export default function HRCommandCenterPage() {
     reason: '',
   });
 
-  const [docForm, setDocForm] = useState({
-    employee_id: '',
-    doc_type: 'PAN',
-    doc_name: '',
-  });
-
   const [assetForm, setAssetForm] = useState({
     employee_id: '',
     asset_name: '',
@@ -71,20 +68,32 @@ export default function HRCommandCenterPage() {
     serial_number: '',
   });
 
+  // Letterhead Studio State
   const [letterModalData, setLetterModalData] = useState({
     title: 'Relieving & Experience Certificate',
     letterType: 'RELIEVING',
     employee: null,
-    referenceNo: 'NH/2026/RELI/1042',
+    referenceNo: '',
+    customTitle: 'TO WHOMSOEVER IT MAY CONCERN',
+    issueDate: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }),
+    openingParagraph: '',
+    bodyParagraph: '',
+    closingParagraph: '',
     signatoryName: 'Aditya Singhania',
     signatoryTitle: 'Authorized Signatory · Managing Director',
-    issueDate: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }),
+    showLogo: true,
+    logoUrl: '/logo.png',
+    showSignature: true,
   });
+  const [isEditingLetter, setIsEditingLetter] = useState(false);
 
+  // Policy Form State
   const [policyForm, setPolicyForm] = useState({
     title: '',
     category: 'GENERAL',
+    customCategory: '',
     summary: '',
+    file_url: '',
   });
 
   const [managerForm, setManagerForm] = useState({
@@ -101,11 +110,14 @@ export default function HRCommandCenterPage() {
   async function loadAllHRData() {
     setLoading(true);
     try {
+      if (syncClientFromId) {
+        syncClientFromId(clientId).catch(() => {});
+      }
+
       const [
         overviewRes,
         balancesRes,
         requestsRes,
-        docsRes,
         assetsRes,
         hierarchyRes,
         policiesRes,
@@ -115,23 +127,24 @@ export default function HRCommandCenterPage() {
         hrService.getOverview(clientId).catch(() => ({ data: { data: {} } })),
         hrService.getLeaveBalances(clientId).catch(() => ({ data: { data: [] } })),
         hrService.getLeaveRequests(clientId).catch(() => ({ data: { data: [] } })),
-        hrService.getDocuments(clientId).catch(() => ({ data: { data: [] } })),
         hrService.getAssets(clientId).catch(() => ({ data: { data: [] } })),
         hrService.getOrgHierarchy(clientId).catch(() => ({ data: { data: { employees: [], departments: [] } } })),
         hrService.getPolicies(clientId).catch(() => ({ data: { data: [] } })),
         hrService.getIssuedLetters(clientId).catch(() => ({ data: { data: [] } })),
-        api.get(`/clients/${clientId}/employees`).catch(() => ({ data: { data: [] } })),
+        api.get(`/clients/${clientId}/employees`, { params: { status: 'ALL' } }).catch(() => ({ data: { data: [] } })),
       ]);
+
+      const hierarchyEmps = hierarchyRes.data.data?.employees || [];
+      const fetchedEmployees = employeesRes.data.data?.length ? employeesRes.data.data : hierarchyEmps;
 
       setOverview(overviewRes.data.data || { metrics: {} });
       setLeaveBalances(balancesRes.data.data || []);
       setLeaveRequests(requestsRes.data.data || []);
-      setDocuments(docsRes.data.data || []);
       setAssets(assetsRes.data.data || []);
       setHierarchyData(hierarchyRes.data.data || { employees: [], departments: [] });
       setPolicies(policiesRes.data.data || []);
       setIssuedLetters(lettersRes.data.data || []);
-      setClientEmployees(employeesRes.data.data || []);
+      setClientEmployees(fetchedEmployees);
     } catch (err) {
       console.error('HR data load error:', err);
       toast.error('Failed to load HR data');
@@ -175,34 +188,6 @@ export default function HRCommandCenterPage() {
     }
   }
 
-  // ─── ACTIONS: DOCUMENTS & KYC ────────────────────────────────────────────────
-  async function handleVerifyDoc(id, verification_status, docName) {
-    try {
-      await hrService.verifyDocument(clientId, id, verification_status);
-      toast.success(`Document marked as ${verification_status}`);
-      loadAllHRData();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to update document status');
-    }
-  }
-
-  async function handleAddDocument(e) {
-    e.preventDefault();
-    if (!docForm.employee_id || !docForm.doc_name) return toast.error('Fill in all document details');
-    setActionLoading(true);
-    try {
-      await hrService.addDocument(clientId, docForm);
-      toast.success('Document uploaded to KYC vault');
-      setShowDocModal(false);
-      setDocForm({ employee_id: '', doc_type: 'PAN', doc_name: '' });
-      loadAllHRData();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to add document');
-    } finally {
-      setActionLoading(false);
-    }
-  }
-
   // ─── ACTIONS: ASSETS ─────────────────────────────────────────────────────────
   async function handleAssignAsset(e) {
     e.preventDefault();
@@ -234,13 +219,23 @@ export default function HRCommandCenterPage() {
   // ─── ACTIONS: POLICIES ───────────────────────────────────────────────────────
   async function handleCreatePolicy(e) {
     e.preventDefault();
-    if (!policyForm.title) return toast.error('Policy title is required');
+    if (!policyForm.title.trim()) return toast.error('Policy title is required');
+
+    const categoryToSave = policyForm.category === 'CUSTOM'
+      ? (policyForm.customCategory.trim() || 'CUSTOM')
+      : policyForm.category;
+
     setActionLoading(true);
     try {
-      await hrService.createPolicy(clientId, policyForm);
+      await hrService.createPolicy(clientId, {
+        title: policyForm.title.trim(),
+        category: categoryToSave,
+        summary: policyForm.summary.trim(),
+        file_url: policyForm.file_url.trim() || null,
+      });
       toast.success('Policy published to repository');
       setShowPolicyModal(false);
-      setPolicyForm({ title: '', category: 'GENERAL', summary: '' });
+      setPolicyForm({ title: '', category: 'GENERAL', customCategory: '', summary: '', file_url: '' });
       loadAllHRData();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to publish policy');
@@ -281,16 +276,72 @@ export default function HRCommandCenterPage() {
   function openLetterModalWithTemplate(templateType, templateTitle) {
     const defaultEmp = clientEmployees[0] || null;
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const clientName = selectedClient?.name || 'Company';
+
+    let customTitle = 'TO WHOMSOEVER IT MAY CONCERN';
+    let opening = '';
+    let body = '';
+    let closing = '';
+
+    if (templateType === 'RELIEVING') {
+      customTitle = 'RELIEVING & EXPERIENCE CERTIFICATE';
+      opening = `This is to formally certify that {EMPLOYEE_NAME} (Roll No: {ROLL_NO}) was employed with {COMPANY_NAME} as {DESIGNATION} in the {DEPARTMENT} department.`;
+      body = `During their tenure, they demonstrated exemplary professional integrity, diligence, and operational excellence. They have completed all handover protocols and have been formally relieved of all duties and company assets in full clearance.`;
+      closing = `We extend our highest appreciation for their valuable contributions and wish them every success in all future pursuits.`;
+    } else if (templateType === 'APPOINTMENT') {
+      customTitle = 'OFFER OF EMPLOYMENT & APPOINTMENT LETTER';
+      opening = `We are pleased to offer you the position of {DESIGNATION} at {COMPANY_NAME} in the {DEPARTMENT} department.`;
+      body = `Your terms of compensation, benefits, and statutory EPF/ESIC inclusions have been verified according to your CTC Structure annexure. This appointment is subject to the terms, code of conduct, and policies of the organization.`;
+      closing = `We welcome you to the team and look forward to a rewarding and collaborative professional journey together.`;
+    } else if (templateType === 'CONFIRMATION') {
+      customTitle = 'CONFIRMATION OF PERMANENT EMPLOYMENT';
+      opening = `Subsequent to the satisfactory completion of your probationary evaluation period, we have the pleasure to confirm your services as a permanent employee of {COMPANY_NAME} with effect from this date.`;
+      body = `All terms and conditions specified in your initial appointment covenant remain in full force. Your designated role remains {DESIGNATION} in {DEPARTMENT}.`;
+      closing = `We appreciate your dedication and look forward to your continued growth and leadership within the organization.`;
+    } else if (templateType === 'BONAFIDE') {
+      customTitle = 'BONAFIDE EMPLOYMENT CERTIFICATE';
+      opening = `This certificate is issued at the request of {EMPLOYEE_NAME} (Roll No: {ROLL_NO}) to confirm that they are currently employed on a full-time, regular active status as {DESIGNATION} with {COMPANY_NAME}.`;
+      body = `This letter is issued specifically for personal verification purposes (such as banking facilities, residential address proof, or passport verification).`;
+      closing = `This document carries zero financial liability for the issuing organization.`;
+    }
+
     setLetterModalData({
       title: templateTitle,
       letterType: templateType,
       employee: defaultEmp,
       referenceNo: `NH/2026/${templateType.substring(0, 4)}/${randomSuffix}`,
+      customTitle,
+      issueDate: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }),
+      openingParagraph: opening,
+      bodyParagraph: body,
+      closingParagraph: closing,
       signatoryName: 'Aditya Singhania',
       signatoryTitle: 'Authorized Signatory · Managing Director',
-      issueDate: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }),
+      showLogo: true,
+      logoUrl: '/logo.png',
+      showSignature: true,
     });
+    setIsEditingLetter(false);
     setShowLetterModal(true);
+  }
+
+  function renderDynamicLetterText(templateString) {
+    if (!templateString) return '';
+    const emp = letterModalData.employee;
+    const clientName = selectedClient?.name || 'Company';
+    return templateString
+      .replace(/{EMPLOYEE_NAME}/g, emp?.name || 'Rahul Sharma')
+      .replace(/{ROLL_NO}/g, emp?.roll_no || 'EMP-1002')
+      .replace(/{DESIGNATION}/g, emp?.designation || 'Specialist')
+      .replace(/{DEPARTMENT}/g, emp?.department || 'Operations')
+      .replace(/{COMPANY_NAME}/g, clientName)
+      .replace(/{JOIN_DATE}/g, emp?.start_date ? new Date(emp.start_date).toLocaleDateString() : 'immediate effect');
+  }
+
+  function handlePrintLetter() {
+    if (!letterPrintRef.current) return;
+    const empCode = letterModalData.employee?.roll_no || 'Document';
+    printElement(letterPrintRef.current, `Letter_${letterModalData.letterType}_${empCode}`);
   }
 
   async function handleSaveLetter() {
@@ -300,6 +351,7 @@ export default function HRCommandCenterPage() {
       await hrService.issueLetter(clientId, {
         employee_id: letterModalData.employee.id,
         letter_type: letterModalData.letterType,
+        reference_no: letterModalData.referenceNo,
         signatory_name: letterModalData.signatoryName,
         signatory_title: letterModalData.signatoryTitle,
       });
@@ -313,16 +365,22 @@ export default function HRCommandCenterPage() {
     }
   }
 
-  // ─── FILTERED EMPLOYEES ──────────────────────────────────────────────────────
-  const filteredEmployees = hierarchyData.employees.filter((emp) => {
+  // ─── FILTERED EMPLOYEES & ASSETS ─────────────────────────────────────────────
+  const filteredEmployees = (hierarchyData.employees.length ? hierarchyData.employees : clientEmployees).filter((emp) => {
     const matchesSearch =
       !employeeSearch ||
       emp.name.toLowerCase().includes(employeeSearch.toLowerCase()) ||
-      emp.roll_no.toLowerCase().includes(employeeSearch.toLowerCase()) ||
+      (emp.roll_no && emp.roll_no.toLowerCase().includes(employeeSearch.toLowerCase())) ||
       (emp.designation && emp.designation.toLowerCase().includes(employeeSearch.toLowerCase()));
     const matchesDept =
       selectedDeptFilter === 'ALL' || (emp.department || 'General') === selectedDeptFilter;
     return matchesSearch && matchesDept;
+  });
+
+  const filteredAssets = assets.filter((asset) => {
+    if (assetFilter === 'ASSIGNED') return asset.status === 'ASSIGNED';
+    if (assetFilter === 'RETURNED') return asset.status === 'RETURNED';
+    return true;
   });
 
   if (loading) {
@@ -352,7 +410,7 @@ export default function HRCommandCenterPage() {
               People Operations & HR Command Center
             </h1>
             <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
-              Coordinate attendance ledgers, onboarding vaults, reporting chains, and statutory letters with 100% tenant isolation.
+              Coordinate attendance ledgers, hardware custody, reporting chains, and statutory letters with 100% tenant isolation.
             </p>
           </div>
 
@@ -409,31 +467,31 @@ export default function HRCommandCenterPage() {
           </div>
         </div>
 
-        {/* KYC Pipeline */}
+        {/* Hardware Assets Custody (REPLACED KYC) */}
         <div className="hr-pulse-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>
-            <span>KYC Verification Vault</span>
-            <span style={{ color: '#2563EB', fontWeight: 800 }}>Dossier</span>
+            <span>Hardware Asset Custody</span>
+            <span style={{ color: '#10B981', fontWeight: 800 }}>⚡ Active</span>
           </div>
           <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--text-primary)' }}>
-            {documents.filter(d => d.verification_status === 'PENDING').length} Pending
+            {assets.filter(a => a.status === 'ASSIGNED').length} Assigned
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-            {documents.filter(d => d.verification_status === 'VERIFIED').length} verified records in vault
+            {assets.length} total registered workstations & devices
           </div>
         </div>
 
-        {/* Hardware Assets & Letters */}
+        {/* Official Letters Issued */}
         <div className="hr-pulse-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>
-            <span>Assets & Letters Issued</span>
-            <span style={{ color: '#7C3AED' }}>🗂️ Active</span>
+            <span>Statutory Letters Issued</span>
+            <span style={{ color: '#7C3AED' }}>🗂️ Registry</span>
           </div>
           <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--text-primary)' }}>
-            {assets.length} Assets · {issuedLetters.length} Letters
+            {issuedLetters.length} Letters
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-            Full asset custody & legal registry maintained
+            Formal certificates with digital authentication
           </div>
         </div>
       </div>
@@ -454,14 +512,14 @@ export default function HRCommandCenterPage() {
         </button>
 
         <button
-          onClick={() => setActiveTab('onboarding')}
-          className={`hr-tab-btn ${activeTab === 'onboarding' ? 'active' : ''}`}
+          onClick={() => setActiveTab('assets')}
+          className={`hr-tab-btn ${activeTab === 'assets' ? 'active' : ''}`}
         >
-          <Briefcase size={16} />
-          2. Digital Onboarding & KYC Vault
-          {documents.filter(d => d.verification_status === 'PENDING').length > 0 && (
-            <span style={{ fontSize: 11, background: '#2563EB', color: '#FFF', padding: '2px 6px', borderRadius: 9999, fontWeight: 800 }}>
-              {documents.filter(d => d.verification_status === 'PENDING').length}
+          <Laptop size={16} />
+          2. Hardware & Asset Custody
+          {assets.filter(a => a.status === 'ASSIGNED').length > 0 && (
+            <span style={{ fontSize: 11, background: '#059669', color: '#FFF', padding: '2px 6px', borderRadius: 9999, fontWeight: 800 }}>
+              {assets.filter(a => a.status === 'ASSIGNED').length}
             </span>
           )}
         </button>
@@ -747,47 +805,95 @@ export default function HRCommandCenterPage() {
       )}
 
       {/* =================================================================== */}
-      {/* MODULE 2: DIGITAL ONBOARDING & KYC VAULT */}
+      {/* MODULE 2: HARDWARE ASSET & DEVICE CUSTODY (REPLACED KYC) */}
       {/* =================================================================== */}
-      {activeTab === 'onboarding' && (
+      {activeTab === 'assets' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           {/* Top Actions & Sub-heading */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
             <div>
-              <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>
-                Digital Onboarding & KYC Document Vault
+              <h2 style={{ fontSize: 18, fontWeight: 900, color: 'var(--text-primary)' }}>
+                Hardware Asset Custody & Laptop Allocation
               </h2>
               <p style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
-                Store Aadhaar, PAN, Bank Passbooks, and signed IP agreements in compliance with IT Act & DPDP.
+                Official serial number registry, asset tag tracking, and return clearance protocols for distributed staff.
               </p>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button
-                onClick={() => setShowDocModal(true)}
-                className="btn btn-secondary"
-                style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
-              >
-                <Plus size={14} /> Upload KYC Doc
-              </button>
-              <button
                 onClick={() => setShowAssetModal(true)}
                 className="btn btn-primary"
-                style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
+                style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}
               >
-                <Laptop size={14} /> Assign Hardware
+                <Laptop size={16} /> + Assign Hardware Device
               </button>
             </div>
           </div>
 
-          {/* KYC Document Checklist Table */}
-          <div className="card" style={{ padding: 24 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 14 }}>
-              Employee Document Verification Ledger
-            </h3>
+          {/* Filter Chips */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setAssetFilter('ALL')}
+              className="btn btn-secondary"
+              style={{
+                fontSize: 12,
+                padding: '5px 14px',
+                borderRadius: 9999,
+                fontWeight: assetFilter === 'ALL' ? 800 : 500,
+                backgroundColor: assetFilter === 'ALL' ? 'var(--accent)' : 'var(--bg-surface)',
+                color: assetFilter === 'ALL' ? '#FFF' : 'var(--text-secondary)',
+              }}
+            >
+              All Assets ({assets.length})
+            </button>
+            <button
+              onClick={() => setAssetFilter('ASSIGNED')}
+              className="btn btn-secondary"
+              style={{
+                fontSize: 12,
+                padding: '5px 14px',
+                borderRadius: 9999,
+                fontWeight: assetFilter === 'ASSIGNED' ? 800 : 500,
+                backgroundColor: assetFilter === 'ASSIGNED' ? 'var(--accent)' : 'var(--bg-surface)',
+                color: assetFilter === 'ASSIGNED' ? '#FFF' : 'var(--text-secondary)',
+              }}
+            >
+              Active Assigned ({assets.filter(a => a.status === 'ASSIGNED').length})
+            </button>
+            <button
+              onClick={() => setAssetFilter('RETURNED')}
+              className="btn btn-secondary"
+              style={{
+                fontSize: 12,
+                padding: '5px 14px',
+                borderRadius: 9999,
+                fontWeight: assetFilter === 'RETURNED' ? 800 : 500,
+                backgroundColor: assetFilter === 'RETURNED' ? 'var(--accent)' : 'var(--bg-surface)',
+                color: assetFilter === 'RETURNED' ? '#FFF' : 'var(--text-secondary)',
+              }}
+            >
+              Returned ({assets.filter(a => a.status === 'RETURNED').length})
+            </button>
+          </div>
 
-            {documents.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '36px 20px', color: 'var(--text-muted)', fontSize: 13 }}>
-                No KYC documents logged yet. Click "Upload KYC Doc" to add candidate files.
+          {/* Hardware Assets Registry Table */}
+          <div className="card" style={{ padding: 24 }}>
+            {filteredAssets.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+                <Laptop size={40} color="#94A3B8" style={{ margin: '0 auto 12px' }} />
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
+                  No Hardware Devices Found
+                </div>
+                <p style={{ fontSize: 13, maxWidth: 420, margin: '0 auto 16px' }}>
+                  Assign company workstations, MacBooks, and peripherals to onboarded team members to keep track of custody.
+                </p>
+                <button
+                  onClick={() => setShowAssetModal(true)}
+                  className="btn btn-primary"
+                  style={{ fontSize: 12.5 }}
+                >
+                  + Assign First Hardware Asset
+                </button>
               </div>
             ) : (
               <div style={{ overflowX: 'auto' }}>
@@ -795,159 +901,74 @@ export default function HRCommandCenterPage() {
                   <thead>
                     <tr>
                       <th>Employee</th>
-                      <th>Document Type</th>
-                      <th>File / Reference</th>
-                      <th>Verification Status</th>
+                      <th>Asset Model & Specification</th>
+                      <th>Asset Tag / Serial Number</th>
+                      <th>Assigned Date</th>
+                      <th>Custody Status</th>
                       <th style={{ textAlign: 'right' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {documents.map((doc) => (
-                      <tr key={doc.id}>
-                        <td>
-                          <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                            {doc.employee?.name}
-                          </div>
-                          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                            {doc.employee?.roll_no} · {doc.employee?.department || 'General'}
-                          </div>
-                        </td>
-                        <td>
-                          <span
-                            style={{
-                              fontSize: 11,
-                              fontWeight: 800,
-                              padding: '2px 8px',
-                              borderRadius: 4,
-                              backgroundColor: 'var(--bg-elevated)',
-                              border: '1px solid var(--border-subtle)',
-                              color: 'var(--text-primary)',
-                            }}
-                          >
-                            {doc.doc_type}
-                          </span>
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: 600, fontSize: 12.5, color: 'var(--text-primary)' }}>
-                            {doc.doc_name}
-                          </div>
-                          <div style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
-                            Uploaded {new Date(doc.created_at).toLocaleDateString()}
-                          </div>
-                        </td>
-                        <td>
-                          <span
-                            style={{
-                              fontSize: 11,
-                              fontWeight: 700,
-                              padding: '2px 8px',
-                              borderRadius: 9999,
-                              backgroundColor:
-                                doc.verification_status === 'VERIFIED' ? '#E6F4EA' :
-                                doc.verification_status === 'REJECTED' ? '#FEE2E2' : '#FEF3C7',
-                              color:
-                                doc.verification_status === 'VERIFIED' ? '#065F46' :
-                                doc.verification_status === 'REJECTED' ? '#991B1B' : '#92400E',
-                            }}
-                          >
-                            {doc.verification_status === 'VERIFIED' ? '✓ VERIFIED' : doc.verification_status}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
-                          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                            {doc.verification_status !== 'VERIFIED' && (
-                              <button
-                                onClick={() => handleVerifyDoc(doc.id, 'VERIFIED', doc.doc_name)}
-                                className="btn btn-secondary"
-                                style={{ padding: '3px 8px', fontSize: 11, backgroundColor: '#E6F4EA', color: '#065F46' }}
-                              >
-                                Mark Verified
-                              </button>
-                            )}
-                            {doc.verification_status !== 'REJECTED' && (
-                              <button
-                                onClick={() => handleVerifyDoc(doc.id, 'REJECTED', doc.doc_name)}
-                                className="btn btn-secondary"
-                                style={{ padding: '3px 8px', fontSize: 11, backgroundColor: '#FEE2E2', color: '#991B1B' }}
-                              >
-                                Reject
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* Hardware Assets Section */}
-          <div className="card" style={{ padding: 24 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div>
-                <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>
-                  Hardware Asset Custody & Laptop Allocation
-                </h3>
-                <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                  Serial number registry and return tracker for distributed employee workstations.
-                </p>
-              </div>
-              <button
-                onClick={() => setShowAssetModal(true)}
-                className="btn btn-secondary"
-                style={{ fontSize: 12 }}
-              >
-                + Assign Device
-              </button>
-            </div>
-
-            {assets.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '24px 20px', color: 'var(--text-muted)', fontSize: 13 }}>
-                No assets registered yet. Click "+ Assign Device" to log company laptops and monitors.
-              </div>
-            ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table className="table" style={{ width: '100%', minWidth: 640 }}>
-                  <thead>
-                    <tr>
-                      <th>Employee</th>
-                      <th>Asset Model</th>
-                      <th>Asset Tag / Serial</th>
-                      <th>Status</th>
-                      <th style={{ textAlign: 'right' }}>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {assets.map((asset) => (
+                    {filteredAssets.map((asset) => (
                       <tr key={asset.id}>
                         <td>
                           <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
                             {asset.employee?.name}
                           </div>
                           <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                            {asset.employee?.roll_no}
+                            {asset.employee?.roll_no} · {asset.employee?.department || 'General'}
                           </div>
                         </td>
-                        <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                          {asset.asset_name}
+                        <td>
+                          <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 13.5 }}>
+                            {asset.asset_name}
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                            Company Workstation Asset
+                          </div>
                         </td>
-                        <td style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
-                          {asset.asset_tag || 'N/A'} · SN: {asset.serial_number || 'N/A'}
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span
+                              style={{
+                                fontFamily: 'monospace',
+                                fontSize: 11.5,
+                                padding: '2px 8px',
+                                borderRadius: 4,
+                                backgroundColor: 'var(--bg-elevated)',
+                                border: '1px solid var(--border-subtle)',
+                                color: 'var(--accent-light, var(--text-primary))',
+                                fontWeight: 700,
+                              }}
+                            >
+                              {asset.asset_tag || 'NO-TAG'}
+                            </span>
+                            {asset.serial_number && (
+                              <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                                SN: {asset.serial_number}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                          {new Date(asset.assigned_date || asset.created_at).toLocaleDateString()}
                         </td>
                         <td>
                           <span
                             style={{
                               fontSize: 11,
-                              fontWeight: 700,
-                              padding: '2px 8px',
-                              borderRadius: 4,
+                              fontWeight: 800,
+                              padding: '3px 10px',
+                              borderRadius: 9999,
                               backgroundColor: asset.status === 'ASSIGNED' ? '#E6F4EA' : '#F1F5F9',
                               color: asset.status === 'ASSIGNED' ? '#065F46' : '#475569',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
                             }}
                           >
-                            {asset.status}
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: asset.status === 'ASSIGNED' ? '#10B981' : '#94A3B8' }} />
+                            {asset.status === 'ASSIGNED' ? 'ACTIVE CUSTODY' : 'RETURNED'}
                           </span>
                         </td>
                         <td style={{ textAlign: 'right' }}>
@@ -955,13 +976,13 @@ export default function HRCommandCenterPage() {
                             <button
                               onClick={() => handleUpdateAssetStatus(asset.id, 'RETURNED')}
                               className="btn btn-secondary"
-                              style={{ padding: '3px 8px', fontSize: 11 }}
+                              style={{ padding: '4px 10px', fontSize: 11.5, fontWeight: 700 }}
                             >
-                              Log Return
+                              Log Device Return
                             </button>
                           ) : (
                             <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                              Returned on {asset.returned_date ? new Date(asset.returned_date).toLocaleDateString() : 'Yes'}
+                              Returned {asset.returned_date ? new Date(asset.returned_date).toLocaleDateString() : 'on record'}
                             </span>
                           )}
                         </td>
@@ -1034,7 +1055,7 @@ export default function HRCommandCenterPage() {
                 color: selectedDeptFilter === 'ALL' ? '#FFF' : 'var(--text-secondary)',
               }}
             >
-              All Departments ({hierarchyData.employees.length})
+              All Departments ({filteredEmployees.length})
             </button>
             {hierarchyData.departments.map((dept) => (
               <button
@@ -1311,7 +1332,7 @@ export default function HRCommandCenterPage() {
                   Statutory Company Policy Repository
                 </h3>
                 <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                  Enforced organizational compliance guidelines and employee handbooks.
+                  Enforced organizational compliance guidelines and downloadable employee handbooks.
                 </p>
               </div>
               <button
@@ -1339,12 +1360,17 @@ export default function HRCommandCenterPage() {
                     gap: 12,
                   }}
                 >
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ flex: 1, minWidth: 260 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span>📄</span> {policy.title}
-                      <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
+                      <span style={{ fontSize: 10, padding: '1px 8px', borderRadius: 4, background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', color: 'var(--accent)', fontWeight: 700 }}>
                         {policy.category}
                       </span>
+                      {policy.file_url && (
+                        <span style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          <Paperclip size={12} /> {policy.file_url}
+                        </span>
+                      )}
                     </div>
                     {policy.summary && (
                       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
@@ -1354,11 +1380,11 @@ export default function HRCommandCenterPage() {
                   </div>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                     <button
-                      onClick={() => toast.success(`Downloaded ${policy.title}`)}
+                      onClick={() => toast.success(`Downloading policy: ${policy.file_url || policy.title}`)}
                       className="btn btn-secondary"
-                      style={{ fontSize: 11, padding: '4px 10px' }}
+                      style={{ fontSize: 11, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 4 }}
                     >
-                      Download PDF
+                      <Download size={12} /> Download PDF
                     </button>
                     <button
                       onClick={() => handleDeletePolicy(policy.id)}
@@ -1379,25 +1405,55 @@ export default function HRCommandCenterPage() {
       {/* MODAL 1: SUBMIT LEAVE REQUEST */}
       {/* =================================================================== */}
       {showLeaveModal && (
-        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowLeaveModal(false)}>
-          <div className="modal-card" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={() => setShowLeaveModal(false)}>
+          <div
+            className="modal"
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-xl, 16px)',
+              boxShadow: '0 20px 45px rgba(0, 0, 0, 0.3)',
+              padding: '24px 28px',
+              maxWidth: 500,
+              width: '100%',
+              color: 'var(--text-primary)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h3 style={{ fontSize: 17, fontWeight: 800 }}>Submit Leave Request</h3>
-              <button onClick={() => setShowLeaveModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+              <div>
+                <h3 style={{ fontSize: 17, fontWeight: 900, color: 'var(--text-primary)' }}>Submit Leave Request</h3>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Log paid or unpaid time off</p>
+              </div>
+              <button
+                onClick={() => setShowLeaveModal(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+              >
                 <X size={20} />
               </button>
             </div>
 
             <form onSubmit={handleCreateLeaveRequest}>
               <div style={{ marginBottom: 14 }}>
-                <label className="label">Employee *</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                  Target Employee *
+                </label>
                 <select
                   className="input"
+                  style={{
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    padding: '9px 12px',
+                    color: 'var(--text-primary)',
+                    width: '100%',
+                    fontSize: '13px',
+                  }}
                   value={leaveForm.employee_id}
                   onChange={(e) => setLeaveForm({ ...leaveForm, employee_id: e.target.value })}
                   required
                 >
-                  <option value="">Select Employee...</option>
+                  <option value="">-- Select Target Employee --</option>
                   {clientEmployees.map((emp) => (
                     <option key={emp.id} value={emp.id}>
                       {emp.name} ({emp.roll_no} - {emp.designation})
@@ -1407,9 +1463,20 @@ export default function HRCommandCenterPage() {
               </div>
 
               <div style={{ marginBottom: 14 }}>
-                <label className="label">Leave Type *</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                  Leave Type *
+                </label>
                 <select
                   className="input"
+                  style={{
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    padding: '9px 12px',
+                    color: 'var(--text-primary)',
+                    width: '100%',
+                    fontSize: '13px',
+                  }}
                   value={leaveForm.leave_type}
                   onChange={(e) => setLeaveForm({ ...leaveForm, leave_type: e.target.value })}
                 >
@@ -1422,20 +1489,42 @@ export default function HRCommandCenterPage() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
                 <div>
-                  <label className="label">Start Date *</label>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                    Start Date *
+                  </label>
                   <input
                     type="date"
                     className="input"
+                    style={{
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: '8px',
+                      padding: '9px 12px',
+                      color: 'var(--text-primary)',
+                      width: '100%',
+                      fontSize: '13px',
+                    }}
                     value={leaveForm.start_date}
                     onChange={(e) => setLeaveForm({ ...leaveForm, start_date: e.target.value })}
                     required
                   />
                 </div>
                 <div>
-                  <label className="label">End Date *</label>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                    End Date *
+                  </label>
                   <input
                     type="date"
                     className="input"
+                    style={{
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: '8px',
+                      padding: '9px 12px',
+                      color: 'var(--text-primary)',
+                      width: '100%',
+                      fontSize: '13px',
+                    }}
                     value={leaveForm.end_date}
                     onChange={(e) => setLeaveForm({ ...leaveForm, end_date: e.target.value })}
                     required
@@ -1444,12 +1533,23 @@ export default function HRCommandCenterPage() {
               </div>
 
               <div style={{ marginBottom: 14 }}>
-                <label className="label">Total Working Days *</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                  Total Working Days *
+                </label>
                 <input
                   type="number"
                   step="0.5"
                   min="0.5"
                   className="input"
+                  style={{
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    padding: '9px 12px',
+                    color: 'var(--text-primary)',
+                    width: '100%',
+                    fontSize: '13px',
+                  }}
                   value={leaveForm.total_days}
                   onChange={(e) => setLeaveForm({ ...leaveForm, total_days: parseFloat(e.target.value) || 1 })}
                   required
@@ -1457,11 +1557,22 @@ export default function HRCommandCenterPage() {
               </div>
 
               <div style={{ marginBottom: 20 }}>
-                <label className="label">Reason / Notes</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                  Reason / Notes
+                </label>
                 <textarea
                   className="input"
                   rows={3}
                   placeholder="e.g. Family wedding, viral infection recovery..."
+                  style={{
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    padding: '9px 12px',
+                    color: 'var(--text-primary)',
+                    width: '100%',
+                    fontSize: '13px',
+                  }}
                   value={leaveForm.reason}
                   onChange={(e) => setLeaveForm({ ...leaveForm, reason: e.target.value })}
                 />
@@ -1481,113 +1592,82 @@ export default function HRCommandCenterPage() {
       )}
 
       {/* =================================================================== */}
-      {/* MODAL 2: UPLOAD KYC DOCUMENT */}
-      {/* =================================================================== */}
-      {showDocModal && (
-        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowDocModal(false)}>
-          <div className="modal-card" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h3 style={{ fontSize: 17, fontWeight: 800 }}>Upload KYC Document to Vault</h3>
-              <button onClick={() => setShowDocModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleAddDocument}>
-              <div style={{ marginBottom: 14 }}>
-                <label className="label">Employee *</label>
-                <select
-                  className="input"
-                  value={docForm.employee_id}
-                  onChange={(e) => setDocForm({ ...docForm, employee_id: e.target.value })}
-                  required
-                >
-                  <option value="">Select Employee...</option>
-                  {clientEmployees.map((emp) => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.name} ({emp.roll_no})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ marginBottom: 14 }}>
-                <label className="label">Document Category *</label>
-                <select
-                  className="input"
-                  value={docForm.doc_type}
-                  onChange={(e) => setDocForm({ ...docForm, doc_type: e.target.value })}
-                >
-                  <option value="PAN">PAN Card (Permanent Account Number)</option>
-                  <option value="AADHAAR">Aadhaar Card (UIDAI Masked)</option>
-                  <option value="BANK_PASSBOOK">Bank Passbook / Cancelled Cheque</option>
-                  <option value="SIGNED_NDA">Signed NDA & IP Covenant</option>
-                  <option value="EXPERIENCE">Relieving / Experience Letter</option>
-                  <option value="OTHER">Other Official Document</option>
-                </select>
-              </div>
-
-              <div style={{ marginBottom: 20 }}>
-                <label className="label">Document Title / File Name *</label>
-                <input
-                  type="text"
-                  className="input"
-                  placeholder="e.g. PAN_Rahul_Sharma.pdf"
-                  value={docForm.doc_name}
-                  onChange={(e) => setDocForm({ ...docForm, doc_name: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-                <button type="button" onClick={() => setShowDocModal(false)} className="btn btn-secondary">
-                  Cancel
-                </button>
-                <button type="submit" disabled={actionLoading} className="btn btn-primary">
-                  {actionLoading ? 'Saving...' : 'Add to Vault'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* =================================================================== */}
-      {/* MODAL 3: ASSIGN HARDWARE ASSET */}
+      {/* MODAL 2: ASSIGN HARDWARE ASSET */}
       {/* =================================================================== */}
       {showAssetModal && (
-        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowAssetModal(false)}>
-          <div className="modal-card" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={() => setShowAssetModal(false)}>
+          <div
+            className="modal"
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-xl, 16px)',
+              boxShadow: '0 20px 45px rgba(0, 0, 0, 0.3)',
+              padding: '24px 28px',
+              maxWidth: 500,
+              width: '100%',
+              color: 'var(--text-primary)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h3 style={{ fontSize: 17, fontWeight: 800 }}>Assign Workstation Hardware Asset</h3>
-              <button onClick={() => setShowAssetModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+              <div>
+                <h3 style={{ fontSize: 17, fontWeight: 900, color: 'var(--text-primary)' }}>Assign Workstation Hardware Asset</h3>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Allocate laptop or device to an employee</p>
+              </div>
+              <button
+                onClick={() => setShowAssetModal(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+              >
                 <X size={20} />
               </button>
             </div>
 
             <form onSubmit={handleAssignAsset}>
               <div style={{ marginBottom: 14 }}>
-                <label className="label">Employee *</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                  Target Employee *
+                </label>
                 <select
                   className="input"
+                  style={{
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    padding: '9px 12px',
+                    color: 'var(--text-primary)',
+                    width: '100%',
+                    fontSize: '13px',
+                  }}
                   value={assetForm.employee_id}
                   onChange={(e) => setAssetForm({ ...assetForm, employee_id: e.target.value })}
                   required
                 >
-                  <option value="">Select Employee...</option>
+                  <option value="">-- Select Target Employee --</option>
                   {clientEmployees.map((emp) => (
                     <option key={emp.id} value={emp.id}>
-                      {emp.name} ({emp.roll_no})
+                      {emp.name} ({emp.roll_no} - {emp.designation})
                     </option>
                   ))}
                 </select>
               </div>
 
               <div style={{ marginBottom: 14 }}>
-                <label className="label">Asset Model & Name *</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                  Asset Model & Name *
+                </label>
                 <input
                   type="text"
                   className="input"
+                  style={{
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    padding: '9px 12px',
+                    color: 'var(--text-primary)',
+                    width: '100%',
+                    fontSize: '13px',
+                  }}
                   placeholder="e.g. Apple MacBook Pro 14 M3, Dell Latitude 5440"
                   value={assetForm.asset_name}
                   onChange={(e) => setAssetForm({ ...assetForm, asset_name: e.target.value })}
@@ -1597,20 +1677,42 @@ export default function HRCommandCenterPage() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
                 <div>
-                  <label className="label">Asset Tag (Internal)</label>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                    Asset Tag (Internal)
+                  </label>
                   <input
                     type="text"
                     className="input"
+                    style={{
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: '8px',
+                      padding: '9px 12px',
+                      color: 'var(--text-primary)',
+                      width: '100%',
+                      fontSize: '13px',
+                    }}
                     placeholder="e.g. NH-MBP-088"
                     value={assetForm.asset_tag}
                     onChange={(e) => setAssetForm({ ...assetForm, asset_tag: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="label">Serial Number</label>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                    Serial Number
+                  </label>
                   <input
                     type="text"
                     className="input"
+                    style={{
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: '8px',
+                      padding: '9px 12px',
+                      color: 'var(--text-primary)',
+                      width: '100%',
+                      fontSize: '13px',
+                    }}
                     placeholder="e.g. C02G99...X"
                     value={assetForm.serial_number}
                     onChange={(e) => setAssetForm({ ...assetForm, serial_number: e.target.value })}
@@ -1632,161 +1734,388 @@ export default function HRCommandCenterPage() {
       )}
 
       {/* =================================================================== */}
-      {/* MODAL 4: LETTERHEAD STUDIO (PRINTABLE MODAL) */}
+      {/* MODAL 3: LETTERHEAD STUDIO (PRINTABLE & EDITABLE) */}
       {/* =================================================================== */}
       {showLetterModal && (
-        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowLetterModal(false)}>
-          <div className="modal-card" style={{ maxWidth: 720 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={() => setShowLetterModal(false)}>
+          <div
+            className="modal"
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-xl, 16px)',
+              boxShadow: '0 20px 45px rgba(0, 0, 0, 0.35)',
+              padding: '24px 28px',
+              maxWidth: 780,
+              width: '100%',
+              color: 'var(--text-primary)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 14, marginBottom: 18 }}>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#10B981', textTransform: 'uppercase' }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: '#10B981', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Official Document Studio
                 </div>
-                <h3 style={{ fontSize: 18, fontWeight: 900, color: 'var(--text-primary)' }}>
+                <h3 style={{ fontSize: 18, fontWeight: 900, color: 'var(--text-primary)', marginTop: 2 }}>
                   {letterModalData.title}
                 </h3>
               </div>
-              <button onClick={() => setShowLetterModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-                <X size={20} />
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingLetter(!isEditingLetter)}
+                  className="btn btn-secondary"
+                  style={{
+                    fontSize: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    backgroundColor: isEditingLetter ? 'var(--accent)' : 'var(--bg-surface)',
+                    color: isEditingLetter ? '#FFF' : 'var(--text-primary)',
+                  }}
+                >
+                  <Edit3 size={14} />
+                  {isEditingLetter ? 'Preview Letterhead' : 'Edit Letter Format'}
+                </button>
+                <button
+                  onClick={() => setShowLetterModal(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
             </div>
 
-            {/* Employee Selector Bar */}
-            <div style={{ marginBottom: 18, display: 'flex', gap: 12, alignItems: 'center', background: 'var(--bg-elevated)', padding: 12, borderRadius: 8 }}>
-              <label style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                Target Employee:
-              </label>
-              <select
-                className="input"
-                style={{ flex: 1, height: 36, fontSize: 13 }}
-                value={letterModalData.employee?.id || ''}
-                onChange={(e) => {
-                  const emp = clientEmployees.find((x) => x.id === e.target.value);
-                  setLetterModalData({ ...letterModalData, employee: emp });
-                }}
-              >
-                {clientEmployees.map((emp) => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.name} ({emp.designation} · {emp.roll_no})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Letterhead Body Preview (Printable) */}
+            {/* Target Employee & Document Controls Bar */}
             <div
               style={{
-                border: '1px solid #E2E8F0',
+                marginBottom: 18,
+                background: 'var(--bg-elevated)',
+                padding: '14px 16px',
+                borderRadius: 10,
+                border: '1px solid var(--border-subtle)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+              }}
+            >
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                <label style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                  Target Employee:
+                </label>
+                <select
+                  className="input"
+                  style={{
+                    flex: 1,
+                    minWidth: 260,
+                    height: 38,
+                    fontSize: 13,
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 8,
+                    color: 'var(--text-primary)',
+                  }}
+                  value={letterModalData.employee?.id || ''}
+                  onChange={(e) => {
+                    const emp = clientEmployees.find((x) => x.id === e.target.value);
+                    setLetterModalData({ ...letterModalData, employee: emp || null });
+                  }}
+                >
+                  <option value="">-- Select Target Employee --</option>
+                  {clientEmployees.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.name} ({emp.roll_no} · {emp.designation || 'Staff'} · {emp.department || 'General'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Toggles for Logo & Digital Signature */}
+              <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'center', paddingTop: 6, borderTop: '1px solid var(--border-subtle)' }}>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={letterModalData.showLogo}
+                    onChange={(e) => setLetterModalData({ ...letterModalData, showLogo: e.target.checked })}
+                    style={{ accentColor: '#023326' }}
+                  />
+                  Show Company Logo
+                </label>
+
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={letterModalData.showSignature}
+                    onChange={(e) => setLetterModalData({ ...letterModalData, showSignature: e.target.checked })}
+                    style={{ accentColor: '#023326' }}
+                  />
+                  Include Digital Signature & Seal
+                </label>
+
+                <div style={{ marginLeft: 'auto', fontSize: 11.5, color: 'var(--text-muted)' }}>
+                  Ref: <strong style={{ color: 'var(--text-primary)', fontFamily: 'monospace' }}>{letterModalData.referenceNo}</strong>
+                </div>
+              </div>
+            </div>
+
+            {/* If in Format Edit Mode: show fields to customize */}
+            {isEditingLetter ? (
+              <div
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 8,
+                  padding: 18,
+                  marginBottom: 18,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 14,
+                }}
+              >
+                <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Edit3 size={14} color="#10B981" /> Custom Company Format Editor
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                      Letter Reference Number
+                    </label>
+                    <input
+                      type="text"
+                      className="input"
+                      value={letterModalData.referenceNo}
+                      onChange={(e) => setLetterModalData({ ...letterModalData, referenceNo: e.target.value })}
+                      style={{ fontSize: 12.5, padding: '7px 10px' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                      Document Heading / Subject
+                    </label>
+                    <input
+                      type="text"
+                      className="input"
+                      value={letterModalData.customTitle}
+                      onChange={(e) => setLetterModalData({ ...letterModalData, customTitle: e.target.value })}
+                      style={{ fontSize: 12.5, padding: '7px 10px' }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                    Opening Paragraph (Use placeholders: <code>{'{EMPLOYEE_NAME}'}</code>, <code>{'{ROLL_NO}'}</code>, <code>{'{DESIGNATION}'}</code>, <code>{'{DEPARTMENT}'}</code>)
+                  </label>
+                  <textarea
+                    className="input"
+                    rows={2}
+                    value={letterModalData.openingParagraph}
+                    onChange={(e) => setLetterModalData({ ...letterModalData, openingParagraph: e.target.value })}
+                    style={{ fontSize: 12, padding: '8px 10px' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                    Body Clauses / Terms
+                  </label>
+                  <textarea
+                    className="input"
+                    rows={3}
+                    value={letterModalData.bodyParagraph}
+                    onChange={(e) => setLetterModalData({ ...letterModalData, bodyParagraph: e.target.value })}
+                    style={{ fontSize: 12, padding: '8px 10px' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                    Closing Remarks
+                  </label>
+                  <textarea
+                    className="input"
+                    rows={2}
+                    value={letterModalData.closingParagraph}
+                    onChange={(e) => setLetterModalData({ ...letterModalData, closingParagraph: e.target.value })}
+                    style={{ fontSize: 12, padding: '8px 10px' }}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                      Signatory Name
+                    </label>
+                    <input
+                      type="text"
+                      className="input"
+                      value={letterModalData.signatoryName}
+                      onChange={(e) => setLetterModalData({ ...letterModalData, signatoryName: e.target.value })}
+                      style={{ fontSize: 12.5, padding: '7px 10px' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                      Signatory Designation / Title
+                    </label>
+                    <input
+                      type="text"
+                      className="input"
+                      value={letterModalData.signatoryTitle}
+                      onChange={(e) => setLetterModalData({ ...letterModalData, signatoryTitle: e.target.value })}
+                      style={{ fontSize: 12.5, padding: '7px 10px' }}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {/* Letterhead Body Preview (Printable Target) */}
+            <div
+              ref={letterPrintRef}
+              style={{
+                border: '1px solid #CBD5E1',
                 borderRadius: 8,
-                padding: '32px 36px',
+                padding: '36px 42px',
                 backgroundColor: '#FFFFFF',
                 color: '#0F172A',
-                fontFamily: 'serif',
+                fontFamily: "'Times New Roman', Times, serif",
                 fontSize: 14,
                 lineHeight: 1.6,
-                boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
+                boxShadow: '0 4px 14px rgba(0,0,0,0.06)',
+                maxHeight: '480px',
+                overflowY: 'auto',
               }}
             >
               {/* Official Header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #023326', paddingBottom: 12, marginBottom: 20 }}>
-                <div>
-                  <div style={{ fontSize: 18, fontWeight: 900, color: '#023326', fontFamily: 'sans-serif' }}>
-                    {selectedClient?.name?.toUpperCase() || 'CORPORATE CLIENT ENTITY'}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#64748B', fontFamily: 'sans-serif' }}>
-                    Managed via Ploy.pe by NH Associates · CIN: U72900HR2022PTC099120
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  borderBottom: '2.5px solid #023326',
+                  paddingBottom: 16,
+                  marginBottom: 24,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  {letterModalData.showLogo && (
+                    <img
+                      src={letterModalData.logoUrl || '/logo.png'}
+                      alt="Company Logo"
+                      style={{ height: 42, width: 'auto', objectFit: 'contain' }}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                  )}
+                  <div>
+                    <div style={{ fontSize: 20, fontWeight: 900, color: '#023326', fontFamily: 'sans-serif', letterSpacing: '0.02em' }}>
+                      {selectedClient?.name?.toUpperCase() || 'CORPORATE CLIENT ENTITY'}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#64748B', fontFamily: 'sans-serif', marginTop: 2 }}>
+                      Managed via Ploy.pe by NH Associates · CIN: U72900HR2022PTC099120
+                    </div>
                   </div>
                 </div>
-                <div style={{ textAlign: 'right', fontFamily: 'sans-serif', fontSize: 11, color: '#64748B' }}>
-                  Ref: {letterModalData.referenceNo}<br />
-                  Date: {letterModalData.issueDate}
+
+                <div style={{ textAlign: 'right', fontFamily: 'sans-serif', fontSize: 11, color: '#475569', lineHeight: 1.5 }}>
+                  <strong>Ref:</strong> {letterModalData.referenceNo}<br />
+                  <strong>Date:</strong> {letterModalData.issueDate}
                 </div>
               </div>
 
               {/* Title */}
-              <div style={{ textAlign: 'center', fontWeight: 900, fontSize: 15, textDecoration: 'underline', marginBottom: 20, fontFamily: 'sans-serif' }}>
-                {letterModalData.letterType === 'RELIEVING' && 'TO WHOMSOEVER IT MAY CONCERN'}
-                {letterModalData.letterType === 'APPOINTMENT' && 'OFFER OF EMPLOYMENT & APPOINTMENT LETTER'}
-                {letterModalData.letterType === 'CONFIRMATION' && 'CONFIRMATION OF PERMANENT EMPLOYMENT'}
-                {letterModalData.letterType === 'BONAFIDE' && 'BONAFIDE EMPLOYMENT CERTIFICATE'}
+              <div
+                style={{
+                  textAlign: 'center',
+                  fontWeight: 900,
+                  fontSize: 15,
+                  textDecoration: 'underline',
+                  marginBottom: 22,
+                  fontFamily: 'sans-serif',
+                  color: '#0F172A',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                {letterModalData.customTitle}
               </div>
 
-              {/* Dynamic Body */}
-              <p style={{ marginBottom: 14 }}>
-                This is to formally certify that <strong>{letterModalData.employee?.name || 'Rahul Sharma'}</strong> (Employee Roll No: <strong>{letterModalData.employee?.roll_no || 'EMP-1002'}</strong>) is associated with <strong>{selectedClient?.name || 'Company'}</strong> as <strong>{letterModalData.employee?.designation || 'Specialist'}</strong> in the <strong>{letterModalData.employee?.department || 'Operations'}</strong> department.
+              {/* Opening */}
+              <p style={{ marginBottom: 14, textAlign: 'justify' }}>
+                {renderDynamicLetterText(letterModalData.openingParagraph)}
               </p>
 
-              {letterModalData.letterType === 'RELIEVING' && (
-                <>
-                  <p style={{ marginBottom: 14 }}>
-                    During their tenure, they demonstrated exemplary professional integrity, diligence, and operational excellence. They have completed all handover protocols and have been formally relieved of all duties and company assets in full clearance.
-                  </p>
-                  <p style={{ marginBottom: 28 }}>
-                    We extend our highest appreciation for their valuable contributions and wish them every success in all future pursuits.
-                  </p>
-                </>
-              )}
+              {/* Body Paragraph */}
+              <p style={{ marginBottom: 14, textAlign: 'justify' }}>
+                {renderDynamicLetterText(letterModalData.bodyParagraph)}
+              </p>
 
-              {letterModalData.letterType === 'APPOINTMENT' && (
-                <>
-                  <p style={{ marginBottom: 14 }}>
-                    We are pleased to appoint you in your role with immediate effect. Your terms of compensation, benefits, and statutory EPF/ESIC inclusions have been verified according to your CTC Structure annexure.
-                  </p>
-                  <p style={{ marginBottom: 28 }}>
-                    We welcome you to the team and look forward to a rewarding and collaborative professional journey together.
-                  </p>
-                </>
-              )}
-
-              {letterModalData.letterType === 'CONFIRMATION' && (
-                <>
-                  <p style={{ marginBottom: 14 }}>
-                    Subsequent to the satisfactory completion of your probationary evaluation period, we have the pleasure to confirm your services as a permanent employee with effect from this date.
-                  </p>
-                  <p style={{ marginBottom: 28 }}>
-                    All other terms and conditions specified in your initial appointment covenant remain in full force.
-                  </p>
-                </>
-              )}
-
-              {letterModalData.letterType === 'BONAFIDE' && (
-                <>
-                  <p style={{ marginBottom: 14 }}>
-                    This certificate is being issued on the specific request of the employee for official verification purposes (banking, address proof, or passport verification). The organization verifies that they are currently employed on full-time active status.
-                  </p>
-                  <p style={{ marginBottom: 28 }}>
-                    This document carries zero financial liability for the issuing organization.
-                  </p>
-                </>
-              )}
+              {/* Closing */}
+              <p style={{ marginBottom: 28, textAlign: 'justify' }}>
+                {renderDynamicLetterText(letterModalData.closingParagraph)}
+              </p>
 
               {/* Signatory Footer */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 36, fontFamily: 'sans-serif' }}>
-                <div>
-                  <div style={{ fontWeight: 800, color: '#023326', fontSize: 13 }}>
-                    {letterModalData.signatoryName}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#64748B' }}>
-                    {letterModalData.signatoryTitle}
-                  </div>
-                  <div style={{ fontSize: 10, color: '#94A3B8' }}>
-                    {selectedClient?.name || 'NH Associates'}
-                  </div>
-                </div>
-
+              {letterModalData.showSignature && (
                 <div
                   style={{
-                    border: '1px dashed #CBD5E1',
-                    borderRadius: 8,
-                    padding: '8px 14px',
-                    textAlign: 'center',
-                    fontSize: 10,
-                    color: '#94A3B8',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-end',
+                    marginTop: 36,
+                    paddingTop: 12,
+                    fontFamily: 'sans-serif',
                   }}
                 >
-                  [Digital Corporate Seal]
+                  <div>
+                    <div
+                      style={{
+                        fontFamily: "'Brush Script MT', cursive, sans-serif",
+                        fontSize: 24,
+                        color: '#023326',
+                        marginBottom: 4,
+                        letterSpacing: '0.05em',
+                      }}
+                    >
+                      {letterModalData.signatoryName}
+                    </div>
+                    <div style={{ fontWeight: 800, color: '#023326', fontSize: 13 }}>
+                      {letterModalData.signatoryName}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#64748B' }}>
+                      {letterModalData.signatoryTitle}
+                    </div>
+                    <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 2 }}>
+                      {selectedClient?.name || 'NH Associates'}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      border: '2px dashed #059669',
+                      borderRadius: 8,
+                      padding: '8px 16px',
+                      textAlign: 'center',
+                      backgroundColor: '#ECFDF5',
+                      color: '#065F46',
+                    }}
+                  >
+                    <div style={{ fontSize: 9, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                      ★ DIGITAL CORPORATE SEAL ★
+                    </div>
+                    <div style={{ fontSize: 10, fontWeight: 700, marginTop: 2 }}>
+                      {selectedClient?.name || 'PEREGRINE'}
+                    </div>
+                    <div style={{ fontSize: 8.5, color: '#047857' }}>
+                      VERIFIED & AUTHENTICATED
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Actions */}
@@ -1796,7 +2125,7 @@ export default function HRCommandCenterPage() {
               </button>
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={handlePrintLetter}
                 className="btn btn-secondary"
                 style={{ display: 'flex', alignItems: 'center', gap: 6 }}
               >
@@ -1816,24 +2145,54 @@ export default function HRCommandCenterPage() {
       )}
 
       {/* =================================================================== */}
-      {/* MODAL 5: ADD COMPANY POLICY */}
+      {/* MODAL 4: PUBLISH COMPANY POLICY */}
       {/* =================================================================== */}
       {showPolicyModal && (
-        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowPolicyModal(false)}>
-          <div className="modal-card" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={() => setShowPolicyModal(false)}>
+          <div
+            className="modal"
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-xl, 16px)',
+              boxShadow: '0 20px 45px rgba(0, 0, 0, 0.3)',
+              padding: '24px 28px',
+              maxWidth: 520,
+              width: '100%',
+              color: 'var(--text-primary)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h3 style={{ fontSize: 17, fontWeight: 800 }}>Publish Company Policy</h3>
-              <button onClick={() => setShowPolicyModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+              <div>
+                <h3 style={{ fontSize: 17, fontWeight: 900, color: 'var(--text-primary)' }}>Publish Company Policy</h3>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Add organizational compliance handbook</p>
+              </div>
+              <button
+                onClick={() => setShowPolicyModal(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+              >
                 <X size={20} />
               </button>
             </div>
 
             <form onSubmit={handleCreatePolicy}>
               <div style={{ marginBottom: 14 }}>
-                <label className="label">Policy Title *</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                  Policy Title *
+                </label>
                 <input
                   type="text"
                   className="input"
+                  style={{
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    padding: '9px 12px',
+                    color: 'var(--text-primary)',
+                    width: '100%',
+                    fontSize: '13px',
+                  }}
                   placeholder="e.g. PoSH Compliance Guideline 2026"
                   value={policyForm.title}
                   onChange={(e) => setPolicyForm({ ...policyForm, title: e.target.value })}
@@ -1842,24 +2201,97 @@ export default function HRCommandCenterPage() {
               </div>
 
               <div style={{ marginBottom: 14 }}>
-                <label className="label">Category *</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                  Category *
+                </label>
                 <select
                   className="input"
+                  style={{
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    padding: '9px 12px',
+                    color: 'var(--text-primary)',
+                    width: '100%',
+                    fontSize: '13px',
+                  }}
                   value={policyForm.category}
                   onChange={(e) => setPolicyForm({ ...policyForm, category: e.target.value })}
                 >
-                  <option value="COMPLIANCE">Compliance & Statutory</option>
-                  <option value="LEAVE">Leave & Attendance Rules</option>
-                  <option value="REMOTE_WORK">Remote Work & Asset Protection</option>
                   <option value="GENERAL">General Code of Conduct</option>
+                  <option value="COMPLIANCE">Compliance & Statutory Guidelines</option>
+                  <option value="LEAVE">Leave & Attendance Policy</option>
+                  <option value="REMOTE_WORK">Remote Work & Asset Protection</option>
+                  <option value="CUSTOM">+ Add New Custom Category...</option>
                 </select>
+
+                {policyForm.category === 'CUSTOM' && (
+                  <div style={{ marginTop: 10 }}>
+                    <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                      Custom Category Name *
+                    </label>
+                    <input
+                      type="text"
+                      className="input"
+                      style={{
+                        background: 'var(--bg-surface)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: '8px',
+                        padding: '8px 12px',
+                        color: 'var(--text-primary)',
+                        width: '100%',
+                        fontSize: '13px',
+                      }}
+                      placeholder="e.g. Information Security, Travel & Expense..."
+                      value={policyForm.customCategory}
+                      onChange={(e) => setPolicyForm({ ...policyForm, customCategory: e.target.value })}
+                      required
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                  Attach Policy Document / Handbook
+                </label>
+                <input
+                  type="text"
+                  className="input"
+                  style={{
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    padding: '9px 12px',
+                    color: 'var(--text-primary)',
+                    width: '100%',
+                    fontSize: '13px',
+                  }}
+                  placeholder="e.g. PoSH_Handbook_2026.pdf or document file name"
+                  value={policyForm.file_url}
+                  onChange={(e) => setPolicyForm({ ...policyForm, file_url: e.target.value })}
+                />
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                  Reference document file name or link for employee handbook download.
+                </div>
               </div>
 
               <div style={{ marginBottom: 20 }}>
-                <label className="label">Summary / Overview</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                  Summary / Overview
+                </label>
                 <textarea
                   className="input"
                   rows={3}
+                  style={{
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    padding: '9px 12px',
+                    color: 'var(--text-primary)',
+                    width: '100%',
+                    fontSize: '13px',
+                  }}
                   placeholder="Summary of the policy rules and employee requirements..."
                   value={policyForm.summary}
                   onChange={(e) => setPolicyForm({ ...policyForm, summary: e.target.value })}
@@ -1880,28 +2312,58 @@ export default function HRCommandCenterPage() {
       )}
 
       {/* =================================================================== */}
-      {/* MODAL 6: UPDATE REPORTING LINE */}
+      {/* MODAL 5: UPDATE REPORTING LINE */}
       {/* =================================================================== */}
       {showManagerModal && (
-        <div className="modal-overlay" style={{ display: 'flex' }} onClick={() => setShowManagerModal(false)}>
-          <div className="modal-card" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={() => setShowManagerModal(false)}>
+          <div
+            className="modal"
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-xl, 16px)',
+              boxShadow: '0 20px 45px rgba(0, 0, 0, 0.3)',
+              padding: '24px 28px',
+              maxWidth: 500,
+              width: '100%',
+              color: 'var(--text-primary)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h3 style={{ fontSize: 17, fontWeight: 800 }}>Update Reporting Hierarchy Line</h3>
-              <button onClick={() => setShowManagerModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+              <div>
+                <h3 style={{ fontSize: 17, fontWeight: 900, color: 'var(--text-primary)' }}>Update Reporting Hierarchy Line</h3>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Set or reassign manager for employee</p>
+              </div>
+              <button
+                onClick={() => setShowManagerModal(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+              >
                 <X size={20} />
               </button>
             </div>
 
             <form onSubmit={handleUpdateManager}>
               <div style={{ marginBottom: 14 }}>
-                <label className="label">Employee *</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                  Target Employee *
+                </label>
                 <select
                   className="input"
+                  style={{
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    padding: '9px 12px',
+                    color: 'var(--text-primary)',
+                    width: '100%',
+                    fontSize: '13px',
+                  }}
                   value={managerForm.employeeId}
                   onChange={(e) => setManagerForm({ ...managerForm, employeeId: e.target.value })}
                   required
                 >
-                  <option value="">Select Employee...</option>
+                  <option value="">-- Select Target Employee --</option>
                   {clientEmployees.map((emp) => (
                     <option key={emp.id} value={emp.id}>
                       {emp.name} ({emp.roll_no} - {emp.designation})
@@ -1911,9 +2373,20 @@ export default function HRCommandCenterPage() {
               </div>
 
               <div style={{ marginBottom: 20 }}>
-                <label className="label">Reporting Manager</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                  Reporting Manager
+                </label>
                 <select
                   className="input"
+                  style={{
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    padding: '9px 12px',
+                    color: 'var(--text-primary)',
+                    width: '100%',
+                    fontSize: '13px',
+                  }}
                   value={managerForm.managerId}
                   onChange={(e) => setManagerForm({ ...managerForm, managerId: e.target.value })}
                 >

@@ -605,12 +605,17 @@ const hrValidators = {
       .isLength({ max: 255 }).withMessage('title must not exceed 255 characters'),
     body('category')
       .optional({ nullable: true })
-      .isIn(['COMPLIANCE', 'LEAVE', 'REMOTE_WORK', 'GENERAL'])
-      .withMessage('Invalid category'),
+      .trim()
+      .isLength({ min: 2, max: 60 })
+      .withMessage('category must be between 2 and 60 characters'),
     body('summary')
       .optional({ nullable: true })
       .trim()
       .isLength({ max: 1000 }).withMessage('summary must not exceed 1000 characters'),
+    body('file_url')
+      .optional({ nullable: true })
+      .trim()
+      .isLength({ max: 500 }).withMessage('file_url must not exceed 500 characters'),
   ],
   issueLetter: [
     param('clientId')
@@ -620,6 +625,10 @@ const hrValidators = {
     body('letter_type')
       .isIn(['APPOINTMENT', 'CONFIRMATION', 'RELIEVING', 'BONAFIDE'])
       .withMessage('letter_type must be APPOINTMENT, CONFIRMATION, RELIEVING, or BONAFIDE'),
+    body('reference_no')
+      .optional({ nullable: true })
+      .trim()
+      .isLength({ max: 100 }).withMessage('reference_no must not exceed 100 characters'),
     body('signatory_name')
       .optional({ nullable: true })
       .trim()

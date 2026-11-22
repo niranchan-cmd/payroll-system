@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useClient } from '../context/ClientContext';
 import {
   LayoutDashboard, Building2, Users, FileSpreadsheet, Settings,
-  Shield, Play, Layers, FileUp, ArrowLeft, X, LogOut, Lock
+  Shield, Play, Layers, FileUp, ArrowLeft, X, LogOut, Lock, Briefcase
 } from 'lucide-react';
 import BrandLogo from './BrandLogo';
 
@@ -44,6 +44,7 @@ export default function Sidebar({ isOpen, onClose, onOpenChangePassword }) {
     { to: `/clients/${activeClientId}`, icon: Building2, label: 'Overview', exact: true },
     { to: `/clients/${activeClientId}/structure`, icon: Layers, label: 'CTC Structure', exact: false },
     { to: `/clients/${activeClientId}/employees`, icon: Users, label: 'Employees', exact: true },
+    { to: `/clients/${activeClientId}/hr`, icon: Briefcase, label: 'HR Operations', exact: false },
     { to: `/clients/${activeClientId}/payroll`, icon: Play, label: 'Payroll Runs', exact: false },
     { to: `/clients/${activeClientId}/employees/import`, icon: FileUp, label: 'Bulk Import', exact: true },
   ] : [];

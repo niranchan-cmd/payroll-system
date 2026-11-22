@@ -657,7 +657,7 @@ async function issueLetter(req, res) {
   const typeCode = letter_type.substring(0, 4).toUpperCase();
   const year = new Date().getFullYear();
   const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-  const reference_no = `NH/${year}/${typeCode}/${randomSuffix}`;
+  const reference_no = req.body.reference_no || `NH/${year}/${typeCode}/${randomSuffix}`;
 
   const letter = await prisma.IssuedLetter.create({
     data: {
