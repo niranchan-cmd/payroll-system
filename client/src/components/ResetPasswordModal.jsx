@@ -38,7 +38,7 @@ export default function ResetPasswordModal({ isOpen, onClose, initialEmail = '' 
             </div>
             <div>
               <div style={{ fontWeight: 700, fontSize: 16 }}>Password Reset</div>
-              <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>Ploye.pe Security Notice</div>
+              <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>Ploy.pe Security Notice</div>
             </div>
           </div>
           <button type="button" className="btn btn-ghost btn-sm btn-icon" onClick={onClose}>

@@ -304,7 +304,7 @@ export default function LoginPage() {
         </div>
 
         <p style={{ textAlign: 'center', marginTop: 24, fontSize: 12, color: 'var(--text-muted)' }}>
-          Ploye.pe v1.0 — by NH Associates
+          Ploy.pe v1.0 — by NH Associates
         </p>
       </div>
 

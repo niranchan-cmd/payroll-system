@@ -8,9 +8,12 @@ export default function PayslipModal({ entry, client, run, onClose }) {
 
   if (!entry) return null;
 
+  const empName = entry.employee?.name || entry.name || 'Employee';
+  const empRoll = entry.employee?.roll_no || entry.roll_no || '';
+
   const handlePrint = () => {
     if (printRef.current) {
-      printElement(printRef.current, `Payslip_${entry.employee?.name || 'Employee'}_${run?.month}_${run?.year}`);
+      printElement(printRef.current, `Payslip_${empName}_${run?.month}_${run?.year}`);
     } else {
       window.print();
     }
@@ -26,7 +29,7 @@ export default function PayslipModal({ entry, client, run, onClose }) {
               Employee Payslip Preview
             </span>
             <span className="badge badge-accent">
-              {entry.employee?.name} ({entry.employee?.roll_no})
+              {empName}{empRoll ? ` (${empRoll})` : ''}
             </span>
           </div>
 

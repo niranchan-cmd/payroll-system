@@ -19,7 +19,14 @@ export default function PayslipDocument({ entry, client, run }) {
   const monthName = MONTH_NAMES[(run?.month || 1) - 1];
   const year = run?.year || new Date().getFullYear();
 
-  const employee = entry.employee || {};
+  const employee = {
+    name: entry.employee?.name || entry.name || '',
+    roll_no: entry.employee?.roll_no || entry.roll_no || '',
+    designation: entry.employee?.designation || entry.designation || '',
+    department: entry.employee?.department || entry.department || '',
+    tax_regime: entry.employee?.tax_regime || entry.tax_regime || 'NEW',
+    start_date: entry.employee?.start_date || entry.start_date || null,
+  };
   const clientName = client?.name || 'Company Name';
   const clientReg = [
     client?.registration_no ? `CIN/Reg: ${client.registration_no}` : null,
@@ -27,7 +34,15 @@ export default function PayslipDocument({ entry, client, run }) {
   ].filter(Boolean).join(' | ');
   const clientAddr = [client?.address, client?.state].filter(Boolean).join(', ');
 
-  const basic = Number(entry.basic_salary || 0);
+  let basic = Number(entry.basic_salary ?? entry.basic ?? 0);
+  // Fallback to basic component in comps if basic is not directly set
+  if (basic === 0) {
+    const basicComp = comps.find((c) => c.name.toLowerCase().includes('basic'));
+    if (basicComp) {
+      basic = Number(basicComp.prorated ?? basicComp.monthly ?? 0);
+    }
+  }
+
   const gross = Number(entry.gross_salary || 0);
   const employeePf = Number(entry.employee_pf || 0);
   const employeeEsi = Number(entry.employee_esi || 0);
@@ -48,6 +63,8 @@ export default function PayslipDocument({ entry, client, run }) {
   const hraComp = comps.find((c) => c.name.toLowerCase().includes('hra'));
   if (hraComp) {
     earningsList.push({ name: 'House Rent Allowance (HRA)', amount: hraComp.prorated ?? hraComp.monthly });
+  } else if (entry.hra && Number(entry.hra) > 0) {
+    earningsList.push({ name: 'House Rent Allowance (HRA)', amount: Number(entry.hra) });
   }
 
   // Other dynamic earnings
@@ -66,6 +83,11 @@ export default function PayslipDocument({ entry, client, run }) {
       earningsList.push({ name: c.name, amount: c.prorated ?? c.monthly });
     }
   });
+
+  // Fallback if comps was empty but other_allowances exists
+  if (earningsList.length === 1 && entry.other_allowances && Number(entry.other_allowances) > 0) {
+    earningsList.push({ name: 'Special Allowance', amount: Number(entry.other_allowances) });
+  }
 
   // Standard deductions
   if (employeePf > 0) {
@@ -133,7 +155,9 @@ export default function PayslipDocument({ entry, client, run }) {
           </div>
           <div className="payslip-info-row">
             <span className="payslip-info-label">Date of Joining:</span>
-            <span className="payslip-info-val">{employee.start_date ? new Date(employee.start_date).toLocaleDateString('en-IN') : '—'}</span>
+            <span className="payslip-info-val">
+              {employee.start_date ? new Date(employee.start_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+            </span>
           </div>
           <div className="payslip-info-row">
             <span className="payslip-info-label">Total Days in Month:</span>
@@ -142,7 +166,7 @@ export default function PayslipDocument({ entry, client, run }) {
           <div className="payslip-info-row">
             <span className="payslip-info-label">Paid / Worked Days:</span>
             <span className="payslip-info-val">
-              <strong>{entry.days_worked} Days</strong>
+              <strong>{entry.days_worked ?? entry.total_days_in_month ?? entry.total_days ?? 31} Days</strong>
               {entry.is_prorated && <span style={{ color: '#b45309', fontWeight: 600, marginLeft: 6 }}>(Prorated)</span>}
             </span>
           </div>
@@ -237,7 +261,7 @@ export default function PayslipDocument({ entry, client, run }) {
             * This is a computer-generated document and does not require a physical signature.
           </div>
           <div className="payslip-branding">
-            Generated via <strong>Ploye.pe</strong> by NH Associates
+            Generated via <strong>Ploy.pe</strong> by NH Associates
           </div>
         </div>
       </div>
